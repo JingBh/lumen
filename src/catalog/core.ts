@@ -49,8 +49,7 @@ export const components = defineComponents({
   Message: {
     props: z.object({
       text: z.string().describe('What the agent is saying or doing now, one or two sentences'),
-      state: z.enum(['idle', 'thinking', 'acting', 'alert']).optional().describe('Colours the rule beside the text'),
-      streaming: z.boolean().optional().describe('Shows a blinking caret while the agent is still working')
+      state: z.enum(['idle', 'thinking', 'acting', 'alert']).optional().describe('Colours the rule beside the text')
     }),
     slots: [],
     description: 'The agent\'s current statement with a small presence orb: use it for "what is happening right now".'

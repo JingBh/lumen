@@ -117,6 +117,19 @@ export class Director {
     return s
   }
 
+  /** What the model calls each session: its folder, with its title when another session works in the same folder. */
+  private labels(): Map<string, string> {
+    const all = [...this.sessions.values()], out = new Map<string, string>(), used = new Set<string>()
+    for (const s of all) {
+      const base = s.title && all.some((x) => x !== s && x.name === s.name) ? `${s.name} · ${s.title}` : s.name
+      let label = base
+      for (let n = 2; used.has(label); n++) label = `${base} (${n})`
+      used.add(label)
+      out.set(s.key, label)
+    }
+    return out
+  }
+
   private latest(): Session | undefined {
     return [...this.sessions.values()].filter((s) => !s.ended).sort((a, b) => b.lastEvent - a.lastEvent)[0]
   }
@@ -190,8 +203,9 @@ export class Director {
 
   /** An answer reaches an agent only through its hooks, so one that stops working can take none: its questions go. */
   private unask(s: Session): void {
+    const label = this.labels().get(s.key)
     const asks = (on: Element['on']): boolean =>
-      Object.values(on ?? {}).flat().some((b) => (b as { action?: string; params?: { to?: string } }).action === 'send' && (b as { params?: { to?: string } }).params?.to === s.key)
+      Object.values(on ?? {}).flat().some((b) => (b as { action?: string; params?: { to?: string } }).action === 'send' && [label, s.name].includes((b as { params?: { to?: string } }).params?.to ?? ''))
     const ops = Object.keys(this.spec.elements).filter((id) => asks(this.spec.elements[id]?.on)).flatMap((id) => this.drop(id))
     if (!ops.length) return
     this.events.patch(ops)
@@ -200,8 +214,8 @@ export class Director {
 
   /** A click in the window that should reach an agent: the session the action names, else the one that was active last. */
   addAction(label: string, text: string, typed: boolean, target?: string): Session | undefined {
-    const all = [...this.sessions.values()]
-    const s = (target && all.find((x) => x.key === target || x.id === target || x.name === target)) || this.latest()
+    const labels = this.labels(), named = [...this.sessions.values()].filter((x) => target && (labels.get(x.key) === target || x.name === target))
+    const s = named.sort((a, b) => b.lastEvent - a.lastEvent)[0] ?? this.latest()
     if (!s) return undefined
     s.inbox = [...s.inbox, { id: `a${Date.now().toString(36)}`, label, text, ts: Date.now(), typed, session: s.key }].slice(-12)
     this.schedule(true)
@@ -422,12 +436,13 @@ export class Director {
     const events = fresh.slice(-MAX_EVENTS_PER_RUN)
     this.abort = new AbortController()
     const now = Date.now()
+    const labels = this.labels()
     const briefing: Briefing = {
       notes: this.notes,
       spec: this.spec,
       events,
       actions,
-      sessions: [...this.sessions.values()].map((s) => ({ key: s.key, folder: s.name, title: s.title, state: s.ended ? 'exited' : s.presence, idleMs: now - s.lastEvent })),
+      sessions: [...this.sessions.values()].map((s) => ({ key: s.key, label: labels.get(s.key) ?? s.name, title: s.title, state: s.ended ? 'exited' : s.presence, idleMs: now - s.lastEvent })),
       rejected: this.rejected,
       ages: Object.fromEntries(this.spec.elements.shell.children.map((id) => [id, now - this.updated(id)])),
       first: !this.notes && this.seen === 0 && !this.spec.elements.shell.children.length

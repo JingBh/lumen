@@ -10,7 +10,7 @@
     h('Divider', { label: '细节' }),
     h('Text', { text: '探针超时只有 1 秒，无法容忍这种抖动。', size: 'sm' })))
   add('Message · Callout · Badge', () => h('Stack', {},
-    h('Message', { text: '正在核对 kubelet 的探针配置。', state: 'thinking', streaming: true }),
+    h('Message', { text: '正在核对 kubelet 的探针配置。', state: 'thinking' }),
     h('Callout', { tone: 'warn', title: '根因很可能在 GRE 隧道', text: '38 次重启全部落在丢包超过 5% 的窗口内。' }),
     h('Row', {}, h('Badge', { text: 'Running', tone: 'ok' }), h('Badge', { text: 'CrashLoopBackOff', tone: 'err' }), h('Badge', { text: 'Pending', tone: 'warn' }))))
   add('Button · Code', () => h('Stack', {},

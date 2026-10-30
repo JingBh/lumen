@@ -1231,7 +1231,7 @@ void main() {
       el: root,
       update(p) {
         setTone(root, Object.hasOwn(SAYING, p.state) ? SAYING[p.state] : 'accent')
-        text.replaceChildren(p.text ?? '', p.streaming ? el('span', { class: 'lm-caret' }) : '')
+        text.textContent = p.text ?? ''
       },
     }
     comp.update(p)
@@ -1683,10 +1683,56 @@ void main() {
   const UNSAFE = new Set(['__proto__', 'constructor', 'prototype'])
   const unescape = (k) => k.replace(/~1/g, '/').replace(/~0/g, '~')
 
+  // ---------- Typewriter: text that changes fades in, left to right and line by line, about 50ms a line ----------
+  // One soft-edged gradient per text line, all driven by one sweep, so each line finishes as the next begins. Only for words
+  // a component has not shown yet: numbers ticking over, and a component redrawing what it already showed, are left alone.
+  // Masks only, the DOM is not touched.
+  try { CSS.registerProperty({ name: '--lm-type', syntax: '<length>', inherits: false, initialValue: '0px' }) } catch {}
+  const shown = new WeakMap(), sweeps = new WeakMap()
+  const words = (s) => s.replace(/[\d\s.,:;%+\-−/|·…()]+/g, '')
+  const type = (e) => {
+    const key = words(e.textContent ?? ''), host = e.closest('.lm-el') ?? e, seen = shown.get(host) ?? new Set()
+    shown.set(host, seen)
+    if (!key || seen.has(key)) return
+    seen.add(key)
+    if (seen.size > 300) seen.delete(seen.values().next().value)
+    if (reduced?.matches) return
+    const W = e.clientWidth, H = e.clientHeight
+    if (!W || !H) return
+    const cs = getComputedStyle(e), size = parseFloat(cs.fontSize), lh = parseFloat(cs.lineHeight) || size * 1.5
+    const lines = Math.min(24, Math.max(1, Math.round(H / lh))), edge = 3 * size
+    const layers = Array.from({ length: lines }, (_, i) => `linear-gradient(90deg, #000 calc(var(--lm-type) - ${i * W + edge}px), transparent calc(var(--lm-type) - ${i * W}px)) 0 ${i * lh}px / 100% ${i === lines - 1 ? H - i * lh : lh}px no-repeat`)
+    e.style.mask = e.style.webkitMask = layers.join(', ')
+    sweeps.get(e)?.cancel()
+    const a = e.animate([{ '--lm-type': '0px' }, { '--lm-type': `${lines * W + edge}px` }], { duration: Math.min(800, lines * 50) })
+    sweeps.set(e, a)
+    a.finished.then(() => (e.style.mask = e.style.webkitMask = ''), () => {})
+  }
+  // The block a piece of text lives in: inline runs (a bold word, a link) are revealed with the line they sit in.
+  const block = (n) => {
+    let e = n.nodeType === 1 ? n : n.parentElement
+    while (e && e.parentElement && getComputedStyle(e).display === 'inline') e = e.parentElement
+    return e
+  }
+  const typewriter = (mount) =>
+    new MutationObserver((records) => {
+      const blocks = new Set()
+      const take = (t) => { if (t.data.trim() && !t.parentElement?.closest('svg, .lm-ghosts, .lm-orb-big')) blocks.add(block(t)) }
+      for (const r of records) {
+        if (r.type === 'characterData') take(r.target)
+        else r.addedNodes.forEach((n) => {
+          if (n.nodeType === 3) take(n)
+          else if (n.nodeType === 1) for (const w = document.createTreeWalker(n, NodeFilter.SHOW_TEXT); w.nextNode();) take(w.currentNode)
+        })
+      }
+      blocks.forEach((e) => e && type(e))
+    }).observe(mount, { subtree: true, childList: true, characterData: true })
+
   const createRenderer = ({ mount, store, onAction = () => {}, functions = {} }) => {
     const spec = { root: null, elements: {} }
     const nodes = new Map()
     let queued = false
+    typewriter(mount)
 
     const ROOT = { key: '' }
     const touched = new Set() // elements the latest patches edited; their panels show it
