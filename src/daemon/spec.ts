@@ -15,7 +15,7 @@ const FORBIDDEN_KEY = new Set(['__proto__', 'constructor', 'prototype'])
 export const createSpec = (): Spec => ({
   root: 'window',
   elements: {
-    window: { type: 'Window', props: { label: 'Lumen', presence: { $state: '/presence' }, status: '等待 Claude Code', collapsed: true }, children: ['shell'] },
+    window: { type: 'Window', props: { label: 'Lumen', presence: { $state: '/presence' }, status: '等待智能体', collapsed: true }, children: ['shell'] },
     shell: { type: 'Shell', props: {}, children: [] }
   },
   state: { presence: 'idle' }

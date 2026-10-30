@@ -1,0 +1,5 @@
+{
+  "name": "lumen",
+  "version": "0.1.0",
+  "description": "Tells Lumen when a ZCode session changes, and brings back what you send to the agent from its window"
+}

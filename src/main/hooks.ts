@@ -5,7 +5,7 @@ import { LUMEN_DIR } from '../daemon/config'
 const CURL_CONF = join(LUMEN_DIR, 'curl.conf')
 
 /**
- * The Claude Code plugin in plugin/ forwards hook events with `curl -K ~/.lumen/curl.conf`. While Lumen runs that file
+ * The plugins in plugins/ forward hook events with `curl -K ~/.lumen/curl.conf`. While Lumen runs that file
  * exists and the daemon answers at once; when Lumen quits it is deleted, and the hook ends in a few milliseconds.
  */
 export const writeRuntime = (port: number, token: string): void => {

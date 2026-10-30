@@ -117,8 +117,13 @@ body {
 
 /* ---------- Window: an irregular outline drawn in real pixels (see Window in ui.js) ----------
    The glass fill is clipped to the same path as the stroke. The frame itself carries no text. */
-.lm-window { --m: 2px; --cap-w: 128px; --cap-h: 128px; position: fixed; inset: 0; color-scheme: dark; }
+.lm-window { --m: 2px; --cap-w: 128px; --cap-h: 128px; --cap-x: calc(100% - var(--cap-w) / 2); --cap-y: calc(var(--cap-h) / 2); position: fixed; inset: 0; color-scheme: dark; }
+.lm-window[data-corner$='w'] { --cap-x: calc(var(--cap-w) / 2); }
+.lm-window[data-corner^='s'] { --cap-y: calc(100% - var(--cap-h) / 2); }
 .lm-window[data-state='collapsed'] { inset: 0 0 auto auto; width: min(var(--cap-w), 100vw); height: min(var(--cap-h), 100vh); }
+.lm-window[data-state='collapsed'][data-corner='nw'] { inset: 0 auto auto 0; }
+.lm-window[data-state='collapsed'][data-corner='se'] { inset: auto 0 0 auto; }
+.lm-window[data-state='collapsed'][data-corner='sw'] { inset: auto auto 0 0; }
 .lm-view {
   position: absolute; inset: 0; display: flex; flex-direction: column; min-width: 0; overflow: hidden;
   background: radial-gradient(40rem 26rem at 0% 0%, var(--glow-1), transparent 70%), radial-gradient(36rem 24rem at 100% 100%, var(--glow-2), transparent 70%), var(--frame-fill);
@@ -156,11 +161,13 @@ body {
 .lm-wbtn[data-kind='close']:hover { border-color: var(--err); background: color-mix(in oklab, var(--err) 20%, transparent); }
 
 .lm-window .lm-orb-big { display: none; position: absolute; right: 0; top: 0; width: var(--cap-w); height: var(--cap-h); z-index: 4; pointer-events: none; }
+.lm-window[data-corner$='w'] .lm-orb-big { right: auto; left: 0; }
+.lm-window[data-corner^='s'] .lm-orb-big { top: auto; bottom: 0; }
 .lm-cap-hit { display: none; }
 
 /* Fold into the orb at the top-right corner, and unfold from it. The window's own scale and opacity are set from script (see Window). */
 .lm-window[data-motion] { pointer-events: none; }
-.lm-window[data-motion] .lm-view, .lm-window[data-motion] .lm-art { transform-origin: calc(100% - var(--cap-w) / 2) calc(var(--cap-h) / 2); }
+.lm-window[data-motion] .lm-view, .lm-window[data-motion] .lm-art { transform-origin: var(--cap-x) var(--cap-y); }
 .lm-window[data-motion='from-orb'] .lm-orb-big { display: block; }
 .lm-window[data-motion='orb'] .lm-orb-big { animation: lm-orb-in .34s cubic-bezier(.2, .8, .2, 1) both; }
 .lm-window[data-motion='from-orb'] .lm-orb-big { animation: lm-orb-out .24s ease-in both; }

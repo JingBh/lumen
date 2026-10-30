@@ -76,7 +76,7 @@ void app.whenReady().then(async () => {
     }
   }
   if (!server) {
-    dialog.showErrorBox('Lumen', `端口 ${DEFAULT_PORT}–${DEFAULT_PORT + 9} 都被占用，无法接收 Claude Code 的 hook。`)
+    dialog.showErrorBox('Lumen', `端口 ${DEFAULT_PORT}–${DEFAULT_PORT + 9} 都被占用，无法接收智能体的 hook。`)
     app.exit(1)
     return
   }

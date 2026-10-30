@@ -21,6 +21,10 @@ export interface Patch {
 
 export type Presence = 'idle' | 'thinking' | 'acting' | 'alert'
 
+/** The coding agent apps whose plugins report to Lumen; each forwards its hooks naming itself. */
+export const APPS = ['claude-code', 'codex', 'zcode'] as const
+export type App = (typeof APPS)[number]
+
 export interface LedgerEntry {
   seq: number
   ts: number

@@ -1,0 +1,20 @@
+{
+  "name": "lumen",
+  "interface": {
+    "displayName": "Lumen"
+  },
+  "plugins": [
+    {
+      "name": "lumen",
+      "source": {
+        "source": "local",
+        "path": "./codex"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}

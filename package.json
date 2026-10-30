@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "license": "MIT",
-  "description": "Always-on-top desktop window that summarizes Claude Code sessions as generative UI",
+  "description": "Always-on-top desktop window that summarizes coding agent sessions in Claude Code, Codex and ZCode as generative UI",
   "main": "dist/main/index.js",
   "scripts": {
     "build": "node scripts/build.mjs",

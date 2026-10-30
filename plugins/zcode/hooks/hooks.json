@@ -1,0 +1,24 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [{ "type": "process", "command": "sh", "args": ["${ZCODE_PLUGIN_ROOT}/hooks/forward.sh", "zcode"], "timeoutMs": 3000 }]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "hooks": [{ "type": "process", "command": "sh", "args": ["${ZCODE_PLUGIN_ROOT}/hooks/forward.sh", "zcode"], "timeoutMs": 3000 }]
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "hooks": [{ "type": "process", "command": "sh", "args": ["${ZCODE_PLUGIN_ROOT}/hooks/forward.sh", "zcode"], "timeoutMs": 3000 }]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [{ "type": "process", "command": "sh", "args": ["${ZCODE_PLUGIN_ROOT}/hooks/forward.sh", "zcode"], "timeoutMs": 3000 }]
+      }
+    ]
+  }
+}

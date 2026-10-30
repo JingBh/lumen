@@ -1,0 +1,15 @@
+{
+  "name": "lumen",
+  "description": "Lumen's plugin for ZCode",
+  "plugins": [
+    {
+      "name": "lumen",
+      "source": "./zcode",
+      "version": "0.1.0",
+      "description": "Tells Lumen when a ZCode session changes, and brings back what you send to the agent from its window",
+      "displayName": "Lumen",
+      "description_i18n": { "zh-CN": "让 Lumen 看到 ZCode 会话的进展，并把你在 Lumen 窗口里发出的内容带回给智能体" },
+      "category": "developer-tools"
+    }
+  ]
+}

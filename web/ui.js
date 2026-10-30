@@ -753,8 +753,9 @@ void main() {
 
   // ---------- Window: the irregular, text-free frame around the shell ----------
   // Messages to the host (an Electron or Tauri bridge exposes window.lumenHost; a framing page gets postMessage):
-  //   { type: 'window', action: 'collapse', width, height }        the window is now the orb; resize the OS window
-  //   { type: 'window', action: 'expand' }
+  //   { type: 'window', action: 'collapse', width, height, corner } the window is now the orb at that corner (ne, nw, se, sw);
+  //                                                                 resize the OS window, keeping the corner where it is
+  //   { type: 'window', action: 'expand', corner }                 the same, the other way
   //   { type: 'window', action: 'drag', phase: 'start' | 'end' }   a drag of the rail or the orb begins or ends; a host that
   //                                                                 can follow the system cursor moves the window itself
   //   { type: 'window', action: 'resize', phase: 'start' | 'end', edge }   a grip (n, ne, e, se, s, sw, w, nw) is held or let go; the
@@ -810,7 +811,7 @@ void main() {
     // Resize grips along the outline: the OS only resizes from the window's square edge, which the cut corners leave far
     // from where the eye aims.
     const grips = el('div', { class: 'lm-grips', 'aria-hidden': 'true' }, ...['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'].map((edge) => el('i', { 'data-edge': edge })))
-    const root = el('div', { class: 'lm-window', 'data-state': 'open', role: 'group' }, view, art, big.el, hit, grips)
+    const root = el('div', { class: 'lm-window', 'data-state': 'open', 'data-corner': 'ne', role: 'group' }, view, art, big.el, hit, grips)
 
     let base = 'idle', pos = { x: 0, y: 0 }
 
@@ -838,8 +839,14 @@ void main() {
       if (document.documentElement.dataset.chrome === 'plain' && root.dataset.state === 'collapsed') setState('open')
     })
 
-    // The window folds into the orb at its top-right corner (and unfolds from it). The fold plays inside the full-size window;
-    // only when it ends is the host asked to shrink the real window, anchored at that corner, so nothing jumps.
+    // The window folds into the orb at its corner nearest the screen's edges (and unfolds from the orb's), so it opens toward
+    // the middle of the screen. The fold plays inside the full-size window; only when it ends is the host asked to shrink
+    // the real window, anchored at that corner, so nothing jumps.
+    const corner = () => {
+      if (!window.lumenHost) return 'ne'
+      const left = screenX - (screen.availLeft ?? 0), top = screenY - (screen.availTop ?? 0)
+      return (top <= screen.availHeight - top - outerHeight ? 'n' : 's') + (left < screen.availWidth - left - outerWidth ? 'w' : 'e')
+    }
     let busy = false
     const wait = (ms) => (reduced?.matches ? 30 : ms)
     const easeInOut = (p) => (p < 0.5 ? 4 * p ** 3 : 1 - (-2 * p + 2) ** 3 / 2)
@@ -868,8 +875,8 @@ void main() {
     }
     const launch = (out) => {
       body.querySelector('.lm-grid')?.dispatchEvent(new Event('lm-pack'))
-      const box = root.getBoundingClientRect(), cap = parseFloat(getComputedStyle(root).getPropertyValue('--cap-w')) || 128
-      const ox = box.right - cap / 2, oy = box.top + cap / 2
+      const box = root.getBoundingClientRect(), cap = parseFloat(getComputedStyle(root).getPropertyValue('--cap-w')) || 128, c = root.dataset.corner
+      const ox = c.endsWith('w') ? box.left + cap / 2 : box.right - cap / 2, oy = c.startsWith('s') ? box.bottom - cap / 2 : box.top + cap / 2
       const list = [...body.querySelectorAll('.lm-grid > *')].map((e) => {
         const r = e.getBoundingClientRect(), x = ox - (r.left + r.width / 2), y = oy - (r.top + r.height / 2)
         return { e, x, y, d: Math.hypot(x, y) || 1 }
@@ -893,6 +900,7 @@ void main() {
     const collapse = () => {
       if (busy || root.dataset.state !== 'open') return
       busy = true
+      root.dataset.corner = corner()
       root.dataset.motion = 'to-orb'
       const lead = fly(true)
       // The cards go first, then the frame folds, and only once it has folded does the orb appear.
@@ -904,7 +912,7 @@ void main() {
         clearFold()
         requestAnimationFrame(() => {
           const r = root.getBoundingClientRect()
-          host({ type: 'window', action: 'collapse', width: Math.ceil(r.width), height: Math.ceil(r.height) })
+          host({ type: 'window', action: 'collapse', width: Math.ceil(r.width), height: Math.ceil(r.height), corner: root.dataset.corner })
           draw()
           busy = false
         })
@@ -913,7 +921,8 @@ void main() {
     const expand = () => {
       if (busy || root.dataset.state !== 'collapsed') return
       busy = true
-      host({ type: 'window', action: 'expand' })
+      root.dataset.corner = corner()
+      host({ type: 'window', action: 'expand', corner: root.dataset.corner })
       setTimeout(() => {
         pos = { x: 0, y: 0 }
         root.style.translate = ''
@@ -1037,7 +1046,8 @@ void main() {
       root.dataset.state = 'collapsed'
       requestAnimationFrame(() => {
         const cs = getComputedStyle(root)
-        host({ type: 'window', action: 'collapse', width: parseFloat(cs.getPropertyValue('--cap-w')), height: parseFloat(cs.getPropertyValue('--cap-h')) })
+        root.dataset.corner = corner()
+        host({ type: 'window', action: 'collapse', width: parseFloat(cs.getPropertyValue('--cap-w')), height: parseFloat(cs.getPropertyValue('--cap-h')), corner: root.dataset.corner })
       })
     }
     return comp
@@ -1683,7 +1693,7 @@ void main() {
   const UNSAFE = new Set(['__proto__', 'constructor', 'prototype'])
   const unescape = (k) => k.replace(/~1/g, '/').replace(/~0/g, '~')
 
-  // ---------- Typewriter: text that changes fades in, left to right and line by line, about 50ms a line ----------
+  // ---------- Typewriter: text that changes fades in, left to right and line by line, about 100ms a line ----------
   // One soft-edged gradient per text line, all driven by one sweep, so each line finishes as the next begins. Only for words
   // a component has not shown yet: numbers ticking over, and a component redrawing what it already showed, are left alone.
   // Masks only, the DOM is not touched.
@@ -1704,7 +1714,7 @@ void main() {
     const layers = Array.from({ length: lines }, (_, i) => `linear-gradient(90deg, #000 calc(var(--lm-type) - ${i * W + edge}px), transparent calc(var(--lm-type) - ${i * W}px)) 0 ${i * lh}px / 100% ${i === lines - 1 ? H - i * lh : lh}px no-repeat`)
     e.style.mask = e.style.webkitMask = layers.join(', ')
     sweeps.get(e)?.cancel()
-    const a = e.animate([{ '--lm-type': '0px' }, { '--lm-type': `${lines * W + edge}px` }], { duration: Math.min(800, lines * 50) })
+    const a = e.animate([{ '--lm-type': '0px' }, { '--lm-type': `${lines * W + edge}px` }], { duration: Math.min(1600, lines * 100) })
     sweeps.set(e, a)
     a.finished.then(() => (e.style.mask = e.style.webkitMask = ''), () => {})
   }

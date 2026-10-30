@@ -12,7 +12,7 @@ const d = new Director(loadConfig(), {
   log: (m) => console.log('[log]', m)
 })
 d.setVisible(true)
-d.ingest({ hook_event_name: 'SessionStart', source: 'resume', session_id: basename(path, '.jsonl'), transcript_path: path })
+d.ingest({ hook_event_name: 'SessionStart', source: 'resume', session_id: basename(path, '.jsonl'), transcript_path: path }, 'claude-code')
 await new Promise<void>((resolve) => {
   const t = setInterval(() => { if (d.status === 'idle' && ops > 0) { clearInterval(t); resolve() } }, 500)
   setTimeout(() => { clearInterval(t); resolve() }, 120_000)

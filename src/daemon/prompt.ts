@@ -1,12 +1,12 @@
 import { catalog } from '../catalog'
 import type { Config } from './config'
 import { renderEntry } from './ledger'
-import type { LedgerEntry, PendingAction, Spec } from './types'
+import type { App, LedgerEntry, PendingAction, Spec } from './types'
 
 const INSTRUCTIONS = `You are the display director of Lumen, an always-on-top window that shows the user, at a glance, what their coding agents are doing. You never talk to the user and never run tools: your only output is edits to the screen. What the screen shows and how it looks is yours to decide. Improvise, and use the components freely.
 
 INPUT
-- SESSIONS: the Claude Code sessions Lumen knows, for reference: each by its working folder in brackets (with its title when two share a folder), its title, state, and when it last did something.
+- SESSIONS: the agent sessions Lumen knows, in Claude Code, Codex or ZCode, for reference: each by its working folder in brackets (with its title when two share a folder), its app, title, state, and when it last did something.
 - NOTES: your memory from earlier updates.
 - SCREEN: the screen as it is, one element per line. Values ending in "…" are cut short: never copy them back.
 - EVENTS: what happened since your last update, oldest first, each line marked with its session in brackets: prompts, the agents' messages, tool calls and results, notifications, summaries of earlier work, and notes from Lumen itself (a session went quiet, the user closed a question, Lumen restarted).
@@ -28,7 +28,7 @@ GOOD TO KNOW
 - Panels are laid out in columns of about 14rem, as many as the window fits; span widens a panel. Columns are narrow, so keep text short: a few words per item rather than sentences, no description the content does not need. Let the layout and the components carry the meaning (status, numbers, progress, lists) instead of explaining in prose.
 - The screen is about now. Take off what is finished or no longer useful rather than leaving it up: a finished task keeps at most its key result, in a line, without the steps that led there. SCREEN says when each panel was last updated; Lumen removes any panel nothing has updated for an hour.
 - A panel that gathers one kind of thing from every session (what waits for the user, what is running, what came out) usually serves better than a panel per session.
-- The send action gives its text to an agent as if the user had typed it: {"action":"send","params":{"text":"…","to":"<session, as in SESSIONS without the brackets>"}}. It reaches the agent at its next tool call, so only an agent that is working can take it: when a session goes idle, Lumen removes what would send to it. A permission prompt can only be answered in the agent's own terminal.
+- The send action gives its text to an agent as if the user had typed it: {"action":"send","params":{"text":"…","to":"<session, as in SESSIONS without the brackets>"}}. It reaches the agent at its next tool call, so only an agent that is working can take it: when a session goes idle, Lumen removes what would send to it. A permission prompt can only be answered in the agent's own app.
 - NOTES hold at most 2000 characters. Date each item with the time an event last confirmed it, e.g. [14:05], and drop items nothing has confirmed for three hours.`
 
 export const systemPrompt = (): string => catalog.prompt({ system: INSTRUCTIONS })
@@ -55,6 +55,7 @@ export const screenForPrompt = (spec: Spec, budget = 14_000, ages: Record<string
 
 export interface SessionBrief {
   key: string
+  app: App
   /** Its working folder, with its title when two sessions share the folder: all the model knows it by. */
   label: string
   title?: string
@@ -74,6 +75,7 @@ export interface Briefing {
   first: boolean
 }
 
+const APP_NAMES: Record<App, string> = { 'claude-code': 'Claude Code', codex: 'Codex', zcode: 'ZCode' }
 const hms = (ts: number): string => new Date(ts).toTimeString().slice(0, 8)
 const ago = (ms: number): string => (ms < 60_000 ? 'just now' : ms < 7_200_000 ? `${Math.round(ms / 60_000)} min ago` : `${Math.round(ms / 3_600_000)} h ago`)
 
@@ -82,7 +84,7 @@ export const userPrompt = (b: Briefing, config: Config): string => {
   const where = (key?: string): string => (key ? `[${label[key] ?? '?'}]` : '')
   return [
     `NOW: ${new Date().toLocaleString('zh-CN', { hour12: false })}`,
-    `SESSIONS:\n${b.sessions.map((s) => `- [${s.label}]${s.title && !s.label.includes(s.title) ? ` "${s.title}"` : ''}: ${s.state}, last event ${ago(s.idleMs)}`).join('\n') || '(none yet)'}`,
+    `SESSIONS:\n${b.sessions.map((s) => `- [${s.label}] ${APP_NAMES[s.app]}${s.title && !s.label.includes(s.title) ? ` "${s.title}"` : ''}: ${s.state}, last event ${ago(s.idleMs)}`).join('\n') || '(none yet)'}`,
     `NOTES:\n${b.notes || (b.first ? '(none yet: this is your first look)' : '(empty)')}`,
     `SCREEN:\n${screenForPrompt(b.spec, undefined, b.ages)}`,
     `EVENTS (${b.events.length} new):\n${b.events.map((e) => renderEntry(e, config, where(e.session))).join('\n') || '(none)'}`,

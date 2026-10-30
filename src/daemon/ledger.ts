@@ -24,6 +24,8 @@ export const toolSummary = (tool: string, input: Record<string, unknown> = {}): 
       return pick('url')
     case 'WebSearch':
       return pick('query')
+    case 'apply_patch':
+      return [...pick('command').matchAll(/^\*\*\* (?:Add|Update|Delete) File: (.+)$/gm)].map((m) => m[1]).join(' ')
     case 'Task':
     case 'Agent':
       return clip(`${pick('subagent_type')} ${pick('description', 'prompt')}`.trim(), 200)
@@ -53,6 +55,9 @@ export const responseSummary = (tool: string, response: unknown): { text: string
   if (Array.isArray(r.content)) return { text: clip(oneLine(r.content.map((c: { text?: string }) => c?.text ?? '').join(' ')), 320), err }
   return { text: clip(oneLine(JSON.stringify(r)), 240), err }
 }
+
+/** A prompt's key where the app gives it no id of its own (Codex, ZCode): its turn and how it starts. */
+export const promptKey = (turn: string, text: string): string => `${turn}:${oneLine(text).slice(0, 60)}`
 
 export class Ledger {
   entries: LedgerEntry[] = []
@@ -97,9 +102,10 @@ export const applyHook = (ledger: Ledger, p: HookPayload, session?: string): Hoo
   const add = (e: Omit<LedgerEntry, 'seq'>): LedgerEntry => (e.key && ledger.byKey(e.key)) || ledger.add({ ...e, session })
   const agent = p.agent_id ? str(p.agent_type) || 'subagent' : undefined
   const tool = str(p.tool_name)
+  const turn = str(p.turn_id ?? p.turnId)
   switch (p.hook_event_name) {
     case 'UserPromptSubmit':
-      add({ ts, kind: 'prompt', text: clip(str(p.prompt), 1200), key: str(p.prompt_id) || undefined })
+      add({ ts, kind: 'prompt', text: clip(str(p.prompt), 1200), key: str(p.prompt_id) || (turn ? promptKey(turn, str(p.prompt)) : undefined) })
       return { urgent: true, presence: 'thinking', changed: true }
     case 'PreToolUse':
       // A sub-agent's results stay in its own transcript, so its calls are told as plain steps.
@@ -115,6 +121,14 @@ export const applyHook = (ledger: Ledger, p: HookPayload, session?: string): Hoo
     case 'Notification':
       add({ ts, kind: 'note', text: `通知：${clip(str(p.message), 300)}` })
       return { urgent: true, presence: 'alert', changed: true }
+    case 'PermissionRequest': {
+      const input = (p.tool_input ?? {}) as Record<string, unknown>
+      add({ ts, kind: 'note', text: `等待用户授权：${tool} ${clip(str(input.description) || toolSummary(tool, input), 300)}` })
+      return { urgent: true, presence: 'alert', changed: true }
+    }
+    case 'Interrupt':
+      add({ ts, kind: 'note', text: '用户打断了本轮' })
+      return { urgent: true, presence: 'idle', changed: true }
     case 'SessionEnd':
       add({ ts, kind: 'note', text: `智能体已退出（${str(p.reason)}）` })
       return { urgent: true, presence: 'idle', changed: true }

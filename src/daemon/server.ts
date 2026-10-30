@@ -4,7 +4,7 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } fr
 import { join } from 'node:path'
 import { LUMEN_DIR } from './config'
 import type { Director } from './director'
-import type { HookPayload } from './types'
+import { APPS, type HookPayload } from './types'
 
 export const DEFAULT_PORT = 7373
 
@@ -19,8 +19,8 @@ export const loadToken = (): string => {
 const MAX_BODY = 4_000_000
 
 /**
- * Claude Code's http hooks POST here. The answer is immediate: the model is never waited for.
- * The response may carry messages the user sent from the window back to the agent.
+ * The apps' plugins POST their hooks here, naming the app in X-Lumen-App. The answer is immediate: the model is never
+ * waited for. The response may carry messages the user sent from the window back to the agent.
  */
 export const startHookServer = (director: Director, token: string, port: number, log: (m: string) => void): Promise<Server> =>
   new Promise((resolve, reject) => {
@@ -41,7 +41,7 @@ export const startHookServer = (director: Director, token: string, port: number,
         try {
           const p = JSON.parse(Buffer.concat(chunks).toString('utf8')) as HookPayload
           if (process.env.LUMEN_DEBUG) appendFileSync(join(LUMEN_DIR, 'payloads.jsonl'), `${JSON.stringify(p)}\n`)
-          director.ingest(p)
+          director.ingest(p, APPS.find((a) => a === req.headers['x-lumen-app']) ?? 'claude-code')
           const context = director.deliveries(p)
           reply(200, context ? JSON.stringify({ hookSpecificOutput: { hookEventName: p.hook_event_name, additionalContext: context } }) : '{}')
         } catch (e) {

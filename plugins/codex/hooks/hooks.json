@@ -1,0 +1,35 @@
+{
+  "description": "Lumen: a prompt, each tool call, a wait for approval, a turn's end, an interruption and a session's end. Lumen reads the rest from the rollout. SessionEnd and Interrupt wait, as Codex may be exiting.",
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [{ "type": "command", "command": "sh \"$PLUGIN_ROOT/hooks/forward.sh\" codex", "timeout": 3 }]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "hooks": [{ "type": "command", "command": "sh \"$PLUGIN_ROOT/hooks/forward.sh\" codex", "timeout": 3 }]
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "hooks": [{ "type": "command", "command": "sh \"$PLUGIN_ROOT/hooks/forward.sh\" codex", "async": true }]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [{ "type": "command", "command": "sh \"$PLUGIN_ROOT/hooks/forward.sh\" codex", "async": true }]
+      }
+    ],
+    "Interrupt": [
+      {
+        "hooks": [{ "type": "command", "command": "sh \"$PLUGIN_ROOT/hooks/forward.sh\" codex", "timeout": 2 }]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [{ "type": "command", "command": "sh \"$PLUGIN_ROOT/hooks/forward.sh\" codex", "timeout": 2 }]
+      }
+    ]
+  }
+}

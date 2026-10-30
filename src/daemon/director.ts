@@ -7,8 +7,10 @@ import { Ledger, applyHook } from './ledger'
 import { costOf, spent, streamChat, type Usage } from './llm'
 import { type Briefing, systemPrompt, userPrompt } from './prompt'
 import { applyModelPatch, collectGarbage, createSpec, overBudget } from './spec'
+import { codexTitle, parseRollout } from './rollout'
 import { parseTranscript } from './transcript'
-import type { Element, HookPayload, LedgerEntry, Patch, PendingAction, Presence, Spec } from './types'
+import type { App, Element, HookPayload, LedgerEntry, Patch, PendingAction, Presence, Spec } from './types'
+import { readZcode, zcodeSession } from './zcode'
 
 export interface DirectorEvents {
   /** The whole screen: restored, reset, or for a window that has just connected. */
@@ -20,17 +22,19 @@ export interface DirectorEvents {
 
 export interface Session {
   id: string
+  /** The app it runs in. */
+  app: App
   /** Short key the model and the screen use for it. */
   key: string
   /** The folder it works in, by name. */
   name: string
-  /** The title Claude Code gave it, if any. */
+  /** The title its app gave it, if any. */
   title?: string
   cwd?: string
   transcript?: string
   presence: Presence
   lastEvent: number
-  /** Bytes of the transcript already read. */
+  /** How far its history has been read: bytes of the transcript or rollout, or ZCode's last update time. */
   offset: number
   inbox: PendingAction[]
   ended?: boolean
@@ -42,7 +46,7 @@ interface Saved {
   savedAt?: number
   notes: string
   spec: Spec
-  sessions?: Pick<Session, 'id' | 'key' | 'cwd' | 'title' | 'transcript' | 'offset' | 'lastEvent'>[]
+  sessions?: (Pick<Session, 'id' | 'key' | 'cwd' | 'title' | 'transcript' | 'offset' | 'lastEvent'> & { app?: App })[]
   touched?: Record<string, number>
 }
 
@@ -66,7 +70,7 @@ const RANK: Record<Presence, number> = { idle: 0, thinking: 1, acting: 2, alert:
 const span = (ms: number): string => (ms < 7_200_000 ? `${Math.round(ms / 60_000)} 分钟` : `${Math.round(ms / 3_600_000)} 小时`)
 
 /**
- * One screen for every Claude Code session. Hooks only say that something changed; the director keeps a ledger of what
+ * One screen for every agent session, in Claude Code, Codex or ZCode. Hooks only say that something changed; the director keeps a ledger of what
  * happened in each session and every so often asks the small model to bring the screen up to date with all of them.
  */
 export class Director {
@@ -106,10 +110,11 @@ export class Director {
 
   // ---------- sessions ----------
 
-  private session(id: string, transcript?: string, cwd?: string): Session {
+  private session(id: string, app: App, transcript?: string, cwd?: string): Session {
     let s = this.sessions.get(id)
     if (!s) {
-      s = { id, key: id.slice(0, 6), name: cwd ? basename(cwd) : id.slice(0, 6), cwd, transcript, presence: 'idle', lastEvent: Date.now(), offset: 0, inbox: [], quiet: 0 }
+      // Codex's ids begin with the time and ZCode's with a prefix: their ends tell sessions apart.
+      s = { id, app, key: id.slice(-6), name: cwd ? basename(cwd) : id.slice(-6), cwd, transcript, presence: 'idle', lastEvent: Date.now(), offset: 0, inbox: [], quiet: 0 }
       this.sessions.set(id, s)
     }
     s.transcript ??= transcript
@@ -147,20 +152,24 @@ export class Director {
 
   // ---------- input ----------
 
-  /** A hook fired. Returns at once; the transcript is read and the ledger updated right after, the model asked later. */
-  ingest(p: HookPayload): void {
+  /** A hook fired in `app`. Returns at once; the history is read and the ledger updated right after, the model asked later. */
+  ingest(p: HookPayload, app: App): void {
     if (!p.session_id) return
+    // A ZCode subagent runs as a session of its own: it is told as part of its parent's, as Claude Code's are.
+    const parent = app === 'zcode' ? zcodeSession(p.session_id)?.parent : undefined
+    if (parent) p = { ...p, session_id: parent, agent_id: p.session_id }
     const known = this.sessions.has(p.session_id)
-    const s = this.session(p.session_id, p.transcript_path, p.cwd)
+    // ZCode's transcript_path is a stand-in that is gone once the hook has run.
+    const s = this.session(p.session_id, app, app === 'zcode' ? undefined : p.transcript_path, p.cwd)
     s.lastEvent = Date.now()
     s.quiet = 0
-    // First sight of a session: its transcript says how it got here.
+    // First sight of a session: its history says how it got here.
     if (this.loading || !known) {
       this.held.push(p)
       if (!this.loading) void this.track(this.catchUp([s]))
       return
     }
-    // What the agent said and what its tools returned since the last hook are in the transcript, not in the payload.
+    // What the agent said and what its tools returned since the last hook are in its history, not in the payload.
     this.reads = this.reads
       .then(async () => {
         if (p.hook_event_name === 'Stop') await new Promise((r) => setTimeout(r, SETTLE_MS))
@@ -282,7 +291,7 @@ export class Director {
     this.spec = saved.spec
     this.touched = saved.touched ?? {}
     collectGarbage(this.spec)
-    for (const x of saved.sessions ?? []) this.sessions.set(x.id, { ...x, name: x.cwd ? basename(x.cwd) : x.key, presence: 'idle', inbox: [], quiet: 0 })
+    for (const x of saved.sessions ?? []) this.sessions.set(x.id, { ...x, app: x.app ?? 'claude-code', name: x.cwd ? basename(x.cwd) : x.key, presence: 'idle', inbox: [], quiet: 0 })
     this.connect()
     if (!this.spec.elements.shell.children.length) return
     this.ledger.add({ ts: Date.now(), kind: 'note', text: `Lumen 重启了：屏幕和笔记停在 ${new Date(saved.savedAt).toTimeString().slice(0, 5)}，此后的事还不知道` })
@@ -317,12 +326,14 @@ export class Director {
     return Math.max(this.touched[id] ?? 0, ...(this.spec.elements[id]?.children ?? []).map((c) => this.updated(c)))
   }
 
-  /** What a session's transcript gained since it was last read. */
+  /** What a session's history gained since it was last read: Claude Code's transcript, Codex's rollout or ZCode's database. */
   private async read(s: Session): Promise<LedgerEntry[]> {
-    if (!s.transcript) return []
-    const parsed = await parseTranscript(s.transcript, s.offset, (key) => this.ledger.byKey(key))
+    const known = (key: string): LedgerEntry | undefined => this.ledger.byKey(key)
+    const parsed = s.app === 'zcode' ? readZcode(s.id, s.offset, known) : s.transcript ? await (s.app === 'codex' ? parseRollout : parseTranscript)(s.transcript, s.offset, known) : undefined
+    if (!parsed) return []
     s.offset = parsed.offset
-    if (parsed.title) s.title = parsed.title
+    const title = s.app === 'codex' ? codexTitle(s.id) : parsed.title
+    if (title) s.title = title
     if (parsed.cwd && !s.cwd) Object.assign(s, { cwd: parsed.cwd, name: basename(parsed.cwd) })
     for (const e of parsed.done) this.ledger.touch(e)
     return parsed.entries.map((e) => ({ ...e, session: s.key }) as LedgerEntry)
@@ -385,11 +396,11 @@ export class Director {
     try {
       mkdirSync(LUMEN_DIR, { recursive: true })
       const now = Date.now()
-      const sessions = [...this.sessions.values()].filter((s) => !s.ended && now - s.lastEvent < KEEP_MS).map(({ id, key, cwd, title, transcript, offset, lastEvent }) => ({ id, key, cwd, title, transcript, offset, lastEvent }))
+      const sessions = [...this.sessions.values()].filter((s) => !s.ended && now - s.lastEvent < KEEP_MS).map(({ id, app, key, cwd, title, transcript, offset, lastEvent }) => ({ id, app, key, cwd, title, transcript, offset, lastEvent }))
       const touched = Object.fromEntries(Object.entries(this.touched).filter(([id]) => id in this.spec.elements))
       writeFileSync(SAVE_FILE, JSON.stringify({ savedAt: now, notes: this.notes, spec: this.spec, sessions, touched } satisfies Saved))
     } catch {
-      // the screen is rebuilt from the transcripts next time
+      // the screen is rebuilt from the sessions' histories next time
     }
   }
 
@@ -442,7 +453,7 @@ export class Director {
       spec: this.spec,
       events,
       actions,
-      sessions: [...this.sessions.values()].map((s) => ({ key: s.key, label: labels.get(s.key) ?? s.name, title: s.title, state: s.ended ? 'exited' : s.presence, idleMs: now - s.lastEvent })),
+      sessions: [...this.sessions.values()].map((s) => ({ key: s.key, app: s.app, label: labels.get(s.key) ?? s.name, title: s.title, state: s.ended ? 'exited' : s.presence, idleMs: now - s.lastEvent })),
       rejected: this.rejected,
       ages: Object.fromEntries(this.spec.elements.shell.children.map((id) => [id, now - this.updated(id)])),
       first: !this.notes && this.seen === 0 && !this.spec.elements.shell.children.length

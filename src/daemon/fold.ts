@@ -9,7 +9,7 @@ const CHUNK_CHARS = 36_000
 
 /**
  * Condense what an agent did before Lumen saw it, so work that is already half-way through can be picked up.
- * Claude Code's own compaction summary covers everything before it, and the agent's replies say what its tools found,
+ * The app's own compaction summary covers everything before it, and the agent's replies say what its tools found,
  * so only the prompts, replies and summaries since the last compaction are read.
  */
 export const foldHistory = async (config: Config, entries: LedgerEntry[], project: string): Promise<string> => {
