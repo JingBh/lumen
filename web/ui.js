@@ -22,6 +22,8 @@
     let w = -1, h = -1
     new ResizeObserver(() => {
       const nw = node.clientWidth, nh = node.clientHeight
+      // Not shown (the window folded into the orb): keep the layout it had, so showing it again changes nothing.
+      if (!nw && !nh) return
       if (nw === w && (axis === 'x' || nh === h)) return
       w = nw; h = nh
       fn(nw, nh)
@@ -849,11 +851,22 @@ void main() {
     const clearFold = () => { view.style.transform = art.style.transform = ''; view.style.opacity = art.style.opacity = '' }
     // The cards have a sequence of their own around the fold: once the frame has opened they come out one after another,
     // nearest the orb first; before it folds they go back into it, farthest first. Web animations, so the cards' own
-    // entry animation does not play again afterwards. Returns how long the cards take.
+    // entry animation does not play again afterwards. Returns how long the cards take to leave.
     const flights = []
     const fly = (out) => {
       flights.splice(0).forEach((a) => a.cancel())
       if (reduced?.matches) return 0
+      if (out) return launch(true)
+      // Shown again, the cards' contents may lay themselves out anew: measure once that has settled, two frames on,
+      // and keep the cards hidden until then.
+      const hold = [...body.querySelectorAll('.lm-grid > *')].map((e) => e.animate([{ opacity: 0 }], { fill: 'forwards' }))
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        hold.forEach((a) => a.cancel())
+        launch(false)
+      }))
+      return 0
+    }
+    const launch = (out) => {
       body.querySelector('.lm-grid')?.dispatchEvent(new Event('lm-pack'))
       const box = root.getBoundingClientRect(), cap = parseFloat(getComputedStyle(root).getPropertyValue('--cap-w')) || 128
       const ox = box.right - cap / 2, oy = box.top + cap / 2
@@ -1598,7 +1611,9 @@ void main() {
     }
     const fit = () => {
       const nw = inner.offsetWidth, nh = inner.offsetHeight, aw = root.clientWidth
-      k = nw && aw ? Math.max(Math.min(1, aw / nw), 0.3) : 1
+      // Not shown (the window folded into the orb): measuring now would collapse it to nothing.
+      if (!aw) return
+      k = nw ? Math.max(Math.min(1, aw / nw), 0.3) : 1
       inner.style.transform = `scale(${k})`
       root.style.height = `${nh * k}px`
       edges()
