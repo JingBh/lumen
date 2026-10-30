@@ -1,0 +1,14 @@
+node_modules
+.yarn/*
+!.yarn/releases
+
+# Build output: yarn build and yarn package make these
+dist
+out
+web/vendor
+web/fonts
+web/kit.js
+web/kit.css
+
+*.log
+.DS_Store

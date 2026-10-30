@@ -1,0 +1,125 @@
+/* agent — AgentCard, ToolCall, Ask, Timer */
+
+/* A tone is inherited by whatever is nested inside, so a root without its own tone resets it. */
+.lm-ask:not([data-tone]) { --tone: initial; }
+
+/* ---------- AgentCard ---------- */
+.lm-agent {
+  --cut: .6rem; container: agent / inline-size; position: relative; width: 100%; min-width: 0;
+  background: color-mix(in oklab, var(--tone) 6%, transparent); border: 1px solid color-mix(in oklab, var(--tone) 38%, var(--line)); box-shadow: inset 2px 0 0 var(--tone);
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, 0 100%);
+}
+.lm-agent::after { content: ''; position: absolute; right: -1px; bottom: -1px; width: var(--cut); height: var(--cut); pointer-events: none; background: linear-gradient(to bottom right, transparent calc(50% - 1.2px), color-mix(in oklab, var(--tone) 38%, var(--line)) calc(50% - 1.2px), color-mix(in oklab, var(--tone) 38%, var(--line)) calc(50% - .2px), transparent calc(50% - .2px)); }
+.lm-agent > .ag { display: grid; grid-template-areas: 'id' 'st' 'tk' 'pg' 'mt'; align-items: center; padding: .75rem .9rem .8rem; }
+.lm-agent .id { grid-area: id; display: flex; align-items: baseline; flex-wrap: wrap; gap: 0 .6rem; min-width: 0; }
+.lm-agent .nm { min-width: 0; max-width: 100%; font-size: .95rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lm-agent .rl { min-width: 0; max-width: 100%; font: 300 .75rem var(--num); color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lm-agent .rl[hidden] { display: none; }
+.lm-agent .st {
+  grid-area: st; justify-self: start; display: inline-flex; align-items: center; gap: .4rem; margin-top: .2rem; padding: .08rem .55rem .08rem .45rem; font-size: .75rem; font-weight: 500; line-height: 1.5; white-space: nowrap;
+  border: 1px solid color-mix(in oklab, var(--tone) 40%, transparent); background: color-mix(in oklab, var(--tone) 13%, transparent); border-radius: 2px;
+}
+.lm-agent .st svg { width: .7rem; height: .7rem; color: var(--tone); fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+.lm-agent .tk { grid-area: tk; margin: .65rem 0 0; font-size: .875rem; line-height: 1.55; color: var(--text-2); overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
+.lm-agent .tk[hidden] { display: none; }
+.lm-agent .pg { grid-area: pg; display: flex; align-items: center; gap: .7rem; margin-top: .65rem; }
+.lm-agent .pg[hidden] { display: none; }
+.lm-agent .tr { position: relative; flex: 1; height: .4rem; background: repeating-linear-gradient(90deg, var(--grid) 0 1px, transparent 1px 10%), color-mix(in oklab, var(--line) 70%, transparent); }
+.lm-agent .tr i { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--tone); box-shadow: 0 0 .6rem -.1rem color-mix(in oklab, var(--tone) calc(var(--bloom) * 100%), transparent); transition: width .6s cubic-bezier(.2, .7, .2, 1); }
+.lm-agent[data-state='idle'] .tr i, .lm-agent[data-state='thinking'] .tr i, .lm-agent[data-state='acting'] .tr i { background: var(--accent); }
+.lm-agent .pc { flex: none; min-width: 2.6em; text-align: right; font: 300 .75rem var(--num); color: var(--text-2); }
+.lm-agent .mt { grid-area: mt; margin-top: .45rem; font: 300 .75rem/1.5 var(--num); color: var(--text-3); overflow-wrap: anywhere; }
+.lm-agent .mt[hidden] { display: none; }
+@container agent (min-width: 36rem) {
+  .lm-agent > .ag { grid-template-columns: minmax(7rem, 15rem) minmax(0, 1fr) minmax(9rem, 14rem); grid-template-areas: 'id tk st' 'id tk pg' 'id tk mt'; column-gap: 1.1rem; padding-block: .8rem; }
+  .lm-agent .id { flex-direction: column; align-items: flex-start; gap: .1rem; }
+  .lm-agent .tk { margin: 0; align-self: center; grid-row: 1 / span 3; -webkit-line-clamp: 2; }
+  .lm-agent .st { justify-self: end; margin: 0; }
+  .lm-agent .pg { margin-top: .5rem; }
+  .lm-agent .mt { margin-top: .3rem; text-align: right; }
+}
+
+/* ---------- ToolCall ---------- */
+.lm-tool {
+  container: tool / inline-size; width: 100%; min-width: 0; background: color-mix(in oklab, var(--tone) 4%, transparent);
+  border: 1px solid var(--line); border-left: 2px solid var(--tone); border-radius: 2px; transition: border-color .2s;
+}
+.lm-tool[data-open] { border-color: var(--line-2); border-left-color: var(--tone); }
+.lm-tool > .hd {
+  display: grid; grid-template-columns: 1rem fit-content(45%) minmax(0, 1fr) auto .7rem; grid-template-areas: 'ic nm sm du ch'; align-items: center; gap: 0 .65rem;
+  width: 100%; margin: 0; padding: .5rem .75rem; text-align: left; font: inherit; color: var(--text); background: transparent; border: 0; border-radius: 0;
+}
+.lm-tool > button.hd { cursor: pointer; transition: background .15s; }
+.lm-tool > button.hd:hover { background: color-mix(in oklab, var(--accent) 8%, transparent); }
+.lm-tool > button.hd:focus-visible { outline: 2px solid var(--accent); outline-offset: -4px; }
+.lm-tool .ic { grid-area: ic; display: grid; place-items: center; color: var(--tone); }
+.lm-tool .ic svg { width: .8rem; height: .8rem; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+.lm-tool .spin circle { stroke-dasharray: 14 9; transform-origin: 5px 5px; animation: lm-spin 1s linear infinite; }
+.lm-tool .nm { grid-area: nm; min-width: 0; font: 500 .8125rem var(--num); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lm-tool .sm { grid-area: sm; min-width: 0; font-size: .8125rem; color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lm-tool .du { grid-area: du; font: 300 .75rem var(--num); color: var(--text-3); white-space: nowrap; }
+.lm-tool .ch { grid-area: ch; width: .7rem; height: .7rem; color: var(--text-3); fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; transform: rotate(-90deg); transition: transform .22s cubic-bezier(.2, .8, .2, 1); }
+.lm-tool > div.hd .ch { visibility: hidden; }
+.lm-tool[data-open] .ch { transform: none; color: var(--text); }
+.lm-tool > .dt { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .25s cubic-bezier(.2, .8, .2, 1); }
+.lm-tool[data-open] > .dt { grid-template-rows: 1fr; }
+.lm-tool > .dt > .in { min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: .6rem; }
+.lm-tool .blk { margin: 0 .75rem; min-width: 0; }
+.lm-tool .blk:first-child { margin-top: .1rem; }
+.lm-tool .blk:last-child { margin-bottom: .75rem; }
+.lm-tool .blk[hidden] { display: none; }
+.lm-tool .blk h4 { margin: 0 0 .25rem; font-size: .72rem; font-weight: 500; color: var(--text-3); }
+.lm-tool .blk pre {
+  margin: 0; padding: .5rem .65rem; max-height: 11rem; overflow: auto; font: 300 .78rem/1.55 var(--num); tab-size: 2; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--text);
+  background: color-mix(in oklab, var(--bg) 55%, transparent); border: 1px solid var(--line); border-radius: 2px;
+}
+.lm-tool[data-state='err'] .blk:last-child pre { border-color: color-mix(in oklab, var(--err) 45%, var(--line)); }
+@container tool (max-width: 21rem) {
+  .lm-tool > .hd { grid-template-columns: 1rem minmax(0, 1fr) auto .7rem; grid-template-areas: 'ic nm du ch' '. sm sm sm'; row-gap: .1rem; }
+  .lm-tool .sm { white-space: normal; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+  .lm-tool .nm { overflow: hidden; text-overflow: ellipsis; }
+}
+
+/* ---------- Ask ---------- */
+.lm-ask {
+  --cut: .7rem; --tone-a: var(--tone, var(--accent)); container: ask / inline-size; position: relative; display: flex; flex-direction: column; gap: .7rem; min-width: 0; padding: .9rem 1rem 1rem;
+  background: linear-gradient(165deg, color-mix(in oklab, var(--tone-a) 10%, transparent), color-mix(in oklab, var(--tone-a) 3%, transparent));
+  border: 1px solid color-mix(in oklab, var(--tone-a) 55%, var(--line)); box-shadow: inset 3px 0 0 var(--tone-a);
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, 0 100%);
+  animation: lm-ask 2.8s ease-in-out infinite;
+}
+.lm-ask::after { content: ''; position: absolute; right: -1px; bottom: -1px; width: var(--cut); height: var(--cut); pointer-events: none; background: linear-gradient(to bottom right, transparent calc(50% - 1.2px), color-mix(in oklab, var(--tone-a) 55%, var(--line)) calc(50% - 1.2px), color-mix(in oklab, var(--tone-a) 55%, var(--line)) calc(50% - .2px), transparent calc(50% - .2px)); }
+/* the edge breathes; the resting state (also what reduced motion shows) is the quiet one */
+@keyframes lm-ask { 50% { box-shadow: inset 3px 0 0 var(--tone-a), inset 0 0 1.4rem -.2rem color-mix(in oklab, var(--tone-a) 38%, transparent); border-color: var(--tone-a); } }
+.lm-ask > header { display: flex; align-items: center; gap: .6rem; min-width: 0; }
+.lm-ask .bc { position: relative; flex: none; display: grid; place-items: center; width: .6rem; height: .6rem; border-radius: 50%; background: var(--tone-a); }
+.lm-ask .bc::before { content: ''; position: absolute; inset: 0; border-radius: 50%; border: 1px solid var(--tone-a); animation: lm-ask-ping 2.8s ease-out infinite; }
+@keyframes lm-ask-ping { from { transform: scale(1); opacity: .9; } to { transform: scale(3); opacity: 0; } }
+.lm-ask .bc svg { width: 1rem; height: 1rem; flex: none; color: var(--ok); fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.lm-ask .ttl { min-width: 0; font-size: .95rem; font-weight: 600; overflow-wrap: anywhere; }
+.lm-ask[hidden] { display: none; }
+.lm-ask .x { flex: none; display: grid; place-items: center; width: 1.5rem; height: 1.5rem; margin: -.25rem -.4rem -.25rem auto; padding: 0; color: var(--text-3); background: none; border: 0; border-radius: 2px; cursor: pointer; transition: color .15s, background .15s; }
+.lm-ask .x:hover { color: var(--text); background: color-mix(in oklab, var(--text) 9%, transparent); }
+.lm-ask .x svg { width: .75rem; height: .75rem; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; }
+.lm-ask .q { margin: 0; color: var(--text-2); line-height: 1.65; overflow-wrap: anywhere; }
+.lm-ask .q[hidden] { display: none; }
+.lm-ask .opts { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: .15rem; }
+.lm-ask .opts .lm-btn { height: auto; min-height: 2.25rem; max-width: 100%; padding: .4rem 1.1rem; line-height: 1.35; text-align: center; white-space: normal; overflow-wrap: anywhere; }
+.lm-ask .opts .lm-btn:disabled { opacity: .35; pointer-events: none; }
+.lm-ask .opts .lm-btn[data-chosen] { pointer-events: none; }
+.lm-ask .opts .lm-btn[data-chosen]::before { content: '✓'; margin-right: .1rem; font-weight: 700; }
+.lm-ask[data-answered] { animation: none; border-color: var(--line-2); box-shadow: inset 3px 0 0 var(--ok); background: color-mix(in oklab, var(--ok) 5%, transparent); }
+.lm-ask[data-answered]::after { background: linear-gradient(to bottom right, transparent calc(50% - 1.2px), var(--line-2) calc(50% - 1.2px), var(--line-2) calc(50% - .2px), transparent calc(50% - .2px)); }
+.lm-ask[data-answered] .bc { background: none; }
+.lm-ask[data-answered] .bc::before { display: none; }
+@container ask (max-width: 22rem) { .lm-ask .opts .lm-btn { flex: 1 1 100%; } }
+
+/* ---------- Timer ---------- */
+.lm-timer { display: inline-flex; flex-direction: column; gap: .2rem; min-width: 0; max-width: 100%; }
+.lm-timer .lb { font-size: .8125rem; font-weight: 500; color: var(--text-3); overflow-wrap: anywhere; }
+.lm-timer .lb[hidden] { display: none; }
+.lm-timer .row { display: flex; align-items: center; gap: .55rem; }
+.lm-timer .v { font: 300 1.6rem/1.1 var(--num); letter-spacing: -.02em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.lm-timer .dot { position: relative; flex: none; width: .5rem; height: .5rem; border-radius: 50%; border: 1px solid var(--text-3); }
+.lm-timer[data-live] .dot { border-color: var(--accent); background: var(--accent); }
+.lm-timer[data-live] .dot::after { content: ''; position: absolute; inset: -1px; border-radius: 50%; border: 1px solid var(--accent); animation: lm-ask-ping 2s ease-out infinite; }

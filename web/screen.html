@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lumen screen</title>
+  <link rel="stylesheet" href="fonts/fonts.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wdth,wght@75..100,400..700&family=Martian+Mono:wdth,wght@75..112.5,100..800&display=swap">
+  <link rel="stylesheet" href="ui.css?v=8">
+  <link rel="stylesheet" href="demo.css?v=2">
+</head>
+<body>
+  <div id="app"></div>
+  <script src="vendor/json-render-core.js"></script>
+  <script src="ui.js?v=12"></script>
+  <script src="scenarios.js?v=2"></script>
+  <script>
+    const q = new URLSearchParams(location.search)
+    Lumen.configure({ theme: q.get('theme'), palette: q.get('palette'), chrome: q.get('chrome') })
+    addEventListener('message', (e) => { if (e.data?.appearance) Lumen.configure(e.data.appearance) })
+    // Opened on its own there is no desktop behind the window, so stand one in.
+    if (parent === window && !window.lumenHost) document.body.classList.add('demo-wall')
+
+    const store = Lumen.createStore()
+    const toast = (text) => {
+      document.querySelector('.lm-toast')?.remove()
+      const t = Object.assign(document.createElement('div'), { className: 'lm-toast', textContent: text })
+      document.body.append(t)
+      setTimeout(() => t.remove(), 2200)
+    }
+    const renderer = Lumen.createRenderer({
+      mount: document.getElementById('app'),
+      store,
+      onAction: (a) => {
+        parent.postMessage({ type: 'action', ...a }, '*')
+        toast(a.action === 'window.close' ? '演示：已确认关闭，窗口保持不变' : `已发送动作：${a.action}`)
+      },
+    })
+
+    const scenario = Scenarios[q.get('s')] ?? Scenarios.ops
+    scenario.init?.(store)
+    const patches = Scenarios.toPatches(Scenarios.flatten(Scenarios.framed(scenario)))
+    const gap = q.get('stream') === '0' ? 0 : 70
+    patches.forEach((p, i) => setTimeout(() => renderer.patch(p), i * gap))
+    setTimeout(() => scenario.live?.(store), patches.length * gap)
+  </script>
+</body>
+</html>

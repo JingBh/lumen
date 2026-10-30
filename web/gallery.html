@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lumen gallery</title>
+  <link rel="stylesheet" href="fonts/fonts.css">
+  <link rel="stylesheet" href="ui.css">
+  <link rel="stylesheet" href="demo.css">
+  <style>
+    html, body { height: auto; min-height: 100%; overflow: visible; }
+    #app { height: auto; margin: 0 auto; }
+    #app .lm-shell, #app .lm-workspace { height: auto; overflow: visible; }
+  </style>
+</head>
+<body class="demo-wall">
+  <div id="app"></div>
+  <script src="vendor/json-render-core.js"></script>
+  <script src="ui.js"></script>
+  <script>
+    // ?group=code loads only web/kit/code.js|css; without it, the concatenation of every group.
+    const g = new URLSearchParams(location.search).get('group')
+    const files = (g ? g.split(',').map((x) => `kit/${x}`) : ['kit'])
+    for (const f of files) document.head.insertAdjacentHTML('beforeend', `<link rel="stylesheet" href="${f}.css">`)
+    for (const f of files) document.write(`<script src="${f}.js"><\/script>`)
+  </script>
+  <script src="gallery.js"></script>
+</body>
+</html>

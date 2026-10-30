@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>Lumen orb lab</title>
+  <link rel="stylesheet" href="fonts/fonts.css">
+  <link rel="stylesheet" href="ui.css">
+  <link rel="stylesheet" href="demo.css">
+  <style>
+    html, body { height: auto; overflow: visible; }
+    body { padding: 24px; }
+    .row { display: flex; flex-wrap: wrap; gap: 28px; align-items: end; margin-bottom: 28px; }
+    figure { margin: 0; display: grid; justify-items: center; gap: 8px; }
+    figcaption { font: 500 12px var(--num); color: var(--text-3); }
+    .lm-presence { width: var(--s); height: var(--s); }
+  </style>
+</head>
+<body class="demo-wall">
+  <div id="rows"></div>
+  <script>
+    // ?nogl=1 hides WebGL, to see the line-drawn fallback
+    if (new URLSearchParams(location.search).get('nogl')) { const get = HTMLCanvasElement.prototype.getContext; HTMLCanvasElement.prototype.getContext = function (type, ...rest) { return type.startsWith('webgl') ? null : get.call(this, type, ...rest) } }
+  </script>
+  <script src="vendor/json-render-core.js"></script>
+  <script src="ui.js"></script>
+  <script>
+    // orb.html?theme=dark&palette=cryo&sizes=360,128,28&states=idle,thinking,acting,alert
+    const q = new URLSearchParams(location.search)
+    Lumen.configure({ theme: q.get('theme') || 'dark', palette: q.get('palette') || 'cryo' })
+    const sizes = (q.get('sizes') || '360,128,28').split(',').map(Number)
+    const states = (q.get('states') || 'idle,thinking,acting,alert').split(',')
+    const rows = document.getElementById('rows')
+    for (const s of sizes) {
+      const row = document.createElement('div')
+      row.className = 'row'
+      for (const st of states) {
+        const p = Lumen.registry.Presence({ state: st, size: `${s}px` })
+        const f = document.createElement('figure')
+        f.append(p.el, Object.assign(document.createElement('figcaption'), { textContent: `${st} · ${s}px` }))
+        row.append(f)
+        if (q.get('hover') === st) { p.core.hover(true); p.core.pointer(0.5, -0.3) }
+        window.cores = [...(window.cores ?? []), p.core]
+      }
+      rows.append(row)
+    }
+  </script>
+</body>
+</html>

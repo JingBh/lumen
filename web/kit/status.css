@@ -1,0 +1,74 @@
+/* Lumen kit · status: Timeline, Checklist. */
+
+/* ---------- Timeline ---------- */
+.lm-tl { container: tl / inline-size; }
+.lm-tl-l { --mk: 1.1rem; list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: max-content var(--mk) minmax(0, 1fr); column-gap: .65rem; }
+.lm-tl-l[data-notime] { grid-template-columns: var(--mk) minmax(0, 1fr); }
+.lm-tl-l[data-notime] .lm-ev > :first-child { display: none; }
+.lm-ev { display: grid; grid-column: 1 / -1; grid-template-columns: subgrid; }
+.lm-ev time { max-width: 7rem; padding-top: .17rem; font: 300 .72rem/1.4 var(--num); color: var(--text-3); text-align: right; overflow-wrap: anywhere; }
+.lm-ev .mk { position: relative; display: flex; justify-content: center; }
+.lm-ev .mk svg { flex: none; width: var(--mk); height: var(--mk); padding: .22rem; color: var(--tone, var(--text-3)); fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; border-radius: 50%; border: 1px solid color-mix(in oklab, var(--tone, var(--text-3)) 55%, transparent); background: var(--panel-solid); }
+.lm-ev .mk::after { content: ''; position: absolute; top: calc(var(--mk) + 2px); bottom: 2px; left: calc(50% - .5px); width: 1px; background: var(--line-2); }
+.lm-ev:last-child .mk::after { display: none; }
+.lm-ev .bd { min-width: 0; padding-bottom: .75rem; }
+.lm-ev:last-child .bd { padding-bottom: 0; }
+.lm-ev .hd { display: flex; flex-wrap: wrap; align-items: baseline; gap: .1rem .5rem; }
+.lm-ev b { min-width: 0; font-size: .875rem; font-weight: 500; line-height: 1.45; overflow-wrap: anywhere; }
+.lm-ev .tag { max-width: 100%; padding: 0 .4rem; font: 300 .66rem/1.55 var(--num); color: var(--text-2); border: 1px solid var(--line-2); border-radius: 2px; overflow-wrap: anywhere; }
+.lm-ev p { margin: .1rem 0 0; font-size: .8125rem; line-height: 1.5; color: var(--text-3); overflow-wrap: anywhere; }
+
+/* An event that is finished and has no status of its own keeps the accent line; one still ahead is dashed and quiet. */
+.lm-ev[data-s='done'] .mk::after { background: color-mix(in oklab, var(--accent) 50%, transparent); }
+.lm-ev[data-s='done'] .mk svg { background: color-mix(in oklab, var(--tone) 14%, var(--panel-solid)); }
+.lm-ev[data-s='active'] b { font-weight: 600; }
+.lm-ev[data-s='active'] .mk svg { border-color: var(--tone); box-shadow: 0 0 0 .2rem color-mix(in oklab, var(--tone) 20%, transparent), 0 0 .8rem color-mix(in oklab, var(--tone) calc(var(--bloom) * 100%), transparent); animation: lm-tl-glow 3.6s ease-in-out infinite; }
+.lm-ev[data-s='pending'] b { font-weight: 400; color: var(--text-3); }
+.lm-ev[data-s='pending'] .mk svg { border-style: dashed; }
+.lm-ev[data-s='pending'] .mk::after { background: none; border-left: 1px dashed var(--line-2); width: 0; }
+.lm-ev.more .bd { padding-bottom: .55rem; font: 300 .72rem/1.6 var(--num); color: var(--text-3); }
+.lm-ev.more .mk::after { top: 0; background: none; width: 0; border-left: 1px dotted var(--text-3); }
+.lm-tl-l[data-notime] .lm-ev.more .mk::after { top: 0; }
+@keyframes lm-tl-glow { 50% { box-shadow: 0 0 0 .1rem color-mix(in oklab, var(--tone) 12%, transparent), 0 0 .5rem color-mix(in oklab, var(--tone) calc(var(--bloom) * 50%), transparent); } }
+
+/* Narrow: the time moves above the title so the text keeps the width. */
+@container tl (max-width: 21rem) {
+  .lm-tl-l { grid-template-columns: var(--mk) minmax(0, 1fr); }
+  .lm-ev time { grid-column: 2; grid-row: 1; padding-top: 0; text-align: left; max-width: none; }
+  .lm-ev time:empty, .lm-ev > span:first-child:empty { display: none; }
+  .lm-ev .mk { grid-column: 1; grid-row: 1 / span 2; }
+  .lm-ev .bd { grid-column: 2; grid-row: 2; }
+  .lm-ev.more > span:first-child { display: none; }
+}
+
+/* ---------- Checklist ---------- */
+.lm-check { container: ck / inline-size; display: flex; flex-direction: column; gap: .55rem; min-width: 0; }
+.lm-check [hidden] { display: none; }
+.lm-check .hd { display: flex; align-items: baseline; gap: .4rem .9rem; min-width: 0; }
+.lm-check h3 { margin: 0; min-width: 0; font-size: .9375rem; font-weight: 600; overflow-wrap: anywhere; }
+.lm-check .ct { margin-left: auto; display: inline-flex; align-items: center; gap: .35rem; font: 300 .75rem var(--num); color: var(--text-2); white-space: nowrap; }
+.lm-check .ct svg { width: .7rem; height: .7rem; color: var(--ok); fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.lm-check .tr { position: relative; height: 3px; background: color-mix(in oklab, var(--line) 80%, transparent); }
+.lm-check .tr i { position: absolute; inset: 0 auto 0 0; background: var(--accent); box-shadow: 0 0 .6rem -.1rem color-mix(in oklab, var(--accent) calc(var(--bloom) * 100%), transparent); transition: width .6s cubic-bezier(.2, .7, .2, 1), background .3s; }
+.lm-check[data-complete] .tr i { background: var(--ok); box-shadow: none; }
+.lm-check .ls { list-style: none; margin: .1rem 0 0; padding: 0; display: flex; flex-direction: column; }
+.lm-ci { --bc: var(--text-3); display: grid; grid-template-columns: .9rem minmax(0, 1fr); gap: 0 .6rem; margin-inline: -.4rem; padding: .22rem .4rem; font-size: .875rem; line-height: 1.45; }
+.lm-ci .bx { grid-row: 1; width: .9rem; height: .9rem; margin-top: .16rem; fill: none; stroke: var(--bc); stroke-width: 1.3; stroke-linecap: round; stroke-linejoin: round; overflow: visible; }
+.lm-ci .l { overflow-wrap: anywhere; }
+.lm-ci .n { grid-column: 2; font-size: .8125rem; line-height: 1.45; color: var(--text-3); overflow-wrap: anywhere; }
+
+.lm-ci[data-s='pending'] .l { color: var(--text-2); }
+.lm-ci[data-s='done'] { --bc: var(--accent); }
+.lm-ci[data-s='done'] .fr { fill: color-mix(in oklab, var(--accent) 16%, transparent); }
+.lm-ci[data-s='done'] .l { color: var(--text-3); text-decoration: line-through; text-decoration-color: color-mix(in oklab, var(--text-3) 70%, transparent); }
+.lm-ci[data-s='done'] .n { opacity: .75; }
+.lm-ci[data-s='active'] { --bc: var(--accent); background: linear-gradient(90deg, color-mix(in oklab, var(--accent) 12%, transparent), transparent 85%); box-shadow: inset 2px 0 0 var(--accent); }
+.lm-ci[data-s='active'] .fr { filter: drop-shadow(0 0 3px color-mix(in oklab, var(--accent) calc(var(--bloom) * 100%), transparent)); }
+.lm-ci[data-s='active'] .core { fill: var(--accent); stroke: none; animation: lm-ck-pulse 3.2s ease-in-out infinite; }
+.lm-ci[data-s='active'] .l { font-weight: 600; }
+.lm-ci[data-s='active'] .n { color: var(--text-2); }
+.lm-ci[data-s='blocked'] { --bc: var(--warn); }
+.lm-ci[data-s='blocked'] .fr { fill: color-mix(in oklab, var(--warn) 14%, transparent); stroke-dasharray: 2.4 1.6; }
+.lm-ci[data-s='blocked'] .n { color: var(--text-2); }
+@keyframes lm-ck-pulse { 50% { opacity: .4; } }
+@media (prefers-reduced-motion: reduce) { .lm-ev[data-s='active'] .mk svg, .lm-ci[data-s='active'] .core { animation: none; } }

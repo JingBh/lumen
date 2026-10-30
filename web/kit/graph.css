@@ -1,0 +1,99 @@
+/* Lumen kit · graph: Flow, Tree, Graph. */
+
+/* ---------- Flow ---------- */
+.lm-flow { container: flow / inline-size; --gap: 1.7rem; list-style: none; margin: 0; padding: 0; display: flex; align-items: stretch; }
+.lm-flow[data-mode='col'] { --gap: .95rem; flex-direction: column; }
+.lm-flow [hidden] { display: none; }
+.lm-fs {
+  --mc: var(--text-3); --lc: var(--line-2); --ls: dashed;
+  position: relative; flex: 1 1 0; min-width: 0; display: grid; grid-template-columns: 1.05rem minmax(0, 1fr); gap: .1rem .55rem; align-content: start;
+  padding: .6rem .7rem; background: var(--panel-solid); border: 1px solid var(--line-2); border-radius: 2px; transition: border-color .3s, box-shadow .3s, background .3s;
+}
+.lm-fs .mk { grid-column: 1; grid-row: 1; width: 1.05rem; height: 1.05rem; margin-top: .1rem; fill: none; stroke: var(--mc); stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; overflow: visible; }
+.lm-fs .mk .dot { fill: var(--mc); stroke: none; transform-origin: 8px 8px; }
+.lm-fs .t { grid-column: 2; font-weight: 500; line-height: 1.4; padding-top: .05rem; overflow-wrap: anywhere; }
+.lm-fs .m { grid-column: 2; font: 300 .72rem var(--num); color: var(--text-3); overflow-wrap: anywhere; }
+.lm-fs .d { grid-column: 2; margin-top: .15rem; font-size: .8125rem; line-height: 1.45; color: var(--text-3); overflow-wrap: anywhere; }
+
+.lm-fs[data-s='done'] { --mc: var(--accent); }
+.lm-fs[data-s='active'] { --mc: var(--accent); border-color: var(--accent); box-shadow: 0 0 1.1rem -.3rem color-mix(in oklab, var(--accent) calc(var(--bloom) * 100%), transparent); }
+.lm-fs[data-s='active'] .mk .dot { animation: lm-fl-pulse 2.4s ease-in-out infinite; }
+.lm-fs[data-s='pending'] .t, .lm-fs[data-s='skipped'] .t { color: var(--text-3); font-weight: 400; }
+.lm-fs[data-s='failed'] { --mc: var(--err); border-color: color-mix(in oklab, var(--err) 62%, transparent); background: linear-gradient(color-mix(in oklab, var(--err) 10%, transparent), color-mix(in oklab, var(--err) 10%, transparent)), var(--panel-solid); }
+.lm-fs[data-s='failed'] .d { color: var(--text-2); }
+.lm-fs[data-s='skipped'] { border-style: dashed; }
+.lm-fs[data-s='skipped'] .mk circle { stroke-dasharray: 2.4 2.4; }
+@keyframes lm-fl-pulse { 50% { opacity: .3; transform: scale(.7); } }
+
+/* A connector takes its look from the stage before it: solid once that stage is done, dashed while it is still ahead. */
+.lm-fs[data-s='done'] + .lm-fs { --lc: color-mix(in oklab, var(--accent) 75%, transparent); --ls: solid; }
+.lm-flow[data-mode='row'] .lm-fs + .lm-fs { margin-left: var(--gap); }
+.lm-flow[data-mode='row'] .lm-fs + .lm-fs::before { content: ''; position: absolute; top: 1.225rem; right: calc(100% + 7px); width: calc(var(--gap) - 7px); border-top: 1px var(--ls) var(--lc); }
+.lm-flow[data-mode='row'] .lm-fs + .lm-fs::after { content: ''; position: absolute; top: 1.225rem; right: calc(100% + 1px); margin-top: -3.5px; border: solid transparent; border-width: 3.5px 0 3.5px 6px; border-left-color: var(--lc); }
+.lm-flow[data-mode='col'] .lm-fs + .lm-fs { margin-top: var(--gap); }
+.lm-flow[data-mode='col'] .lm-fs + .lm-fs::before { content: ''; position: absolute; left: calc(.7rem + .525rem - .5px); bottom: calc(100% + 7px); height: calc(var(--gap) - 7px); border-left: 1px var(--ls) var(--lc); }
+.lm-flow[data-mode='col'] .lm-fs + .lm-fs::after { content: ''; position: absolute; left: calc(.7rem + .525rem - 3.5px); bottom: calc(100% + 1px); border: solid transparent; border-width: 6px 3.5px 0; border-top-color: var(--lc); }
+@container flow (min-width: 24rem) {
+  .lm-flow[data-mode='col'] .lm-fs { grid-template-columns: 1.05rem minmax(0, 1fr) auto; }
+  .lm-flow[data-mode='col'] .lm-fs .m { grid-column: 3; grid-row: 1; padding-top: .2rem; }
+  .lm-flow[data-mode='col'] .lm-fs .d { grid-column: 2 / -1; }
+}
+@media (prefers-reduced-motion: reduce) { .lm-fs[data-s='active'] .mk .dot { animation: none; } }
+
+/* ---------- Tree ---------- */
+.lm-tree { --gw: 1.15rem; display: flex; flex-direction: column; max-height: 30rem; overflow: auto; font-size: .875rem; }
+.lm-tr { display: flex; align-items: stretch; min-height: 1.7rem; border-radius: 2px; outline-offset: -2px; }
+.lm-tr[aria-expanded] { cursor: pointer; }
+.lm-tr:hover { background: color-mix(in oklab, var(--accent) 7%, transparent); }
+.lm-tr .gds { display: flex; align-items: stretch; flex: none; }
+.lm-tr .gd { position: relative; width: var(--gw); }
+.lm-tr .gd[data-g='line']::before, .lm-tr .gd[data-g='tee']::before { content: ''; position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: var(--line-2); }
+.lm-tr .gd[data-g='tee']::after, .lm-tr .gd[data-g='elbow']::after { content: ''; position: absolute; left: 50%; top: .85rem; width: calc(50% + var(--ext, 0rem)); height: 1px; background: var(--line-2); }
+.lm-tr .gd[data-g='elbow']::before { content: ''; position: absolute; left: 50%; top: 0; height: .85rem; width: 1px; background: var(--line-2); }
+.lm-tr[data-leaf] { --ext: calc(var(--gw) * .55); }
+.lm-tr .tg { flex: none; display: grid; place-items: center; align-self: flex-start; width: var(--gw); height: 1.7rem; }
+.lm-tr .chev { width: .7rem; height: .7rem; fill: none; stroke: var(--text-3); stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; transition: transform .15s; }
+.lm-tr[aria-expanded='true'] .chev { transform: rotate(90deg); stroke: var(--text-2); }
+.lm-tr .bd { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: flex-start; column-gap: .6rem; padding-right: .3rem; }
+.lm-tr .t { flex: 1 1 8rem; min-width: 0; display: flex; gap: .4rem; }
+.lm-tr .ic { flex: none; width: .8rem; height: .8rem; margin-top: .45rem; fill: none; stroke: var(--tone, var(--text-3)); stroke-width: 1.2; stroke-linecap: round; stroke-linejoin: round; }
+.lm-tr .l { min-width: 0; padding: .24rem 0; line-height: 1.3; overflow-wrap: anywhere; }
+.lm-tr[aria-expanded] > .bd .l { font-weight: 500; }
+.lm-tr .n, .lm-tr .m { flex: none; padding-top: .3rem; font: 300 .72rem/1.3 var(--num); color: var(--text-3); }
+.lm-tr .m { max-width: 50%; overflow-wrap: anywhere; text-align: right; }
+.lm-tr .n:empty, .lm-tr .m:empty, .lm-tr .b:empty { display: none; }
+.lm-tr .b { flex: none; align-self: flex-start; display: grid; place-items: center; width: 1.05rem; height: 1.05rem; margin-top: .33rem; border-radius: 2px; color: var(--tone); border: 1px solid color-mix(in oklab, var(--tone) 42%, transparent); background: color-mix(in oklab, var(--tone) 14%, transparent); }
+.lm-tr .b svg { width: .6rem; height: .6rem; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.lm-tr .b[data-inner] { border-style: dashed; background: none; }
+
+/* ---------- Graph: a fixed layout that scales to fit, so the diagram never reflows ---------- */
+.lm-graph { position: relative; flex: none; width: 100%; min-width: 0; overflow: hidden; }
+.lm-graph[data-scroll] { overflow-x: auto; }
+.lm-graph-box { position: relative; margin-inline: auto; }
+.lm-graph-in { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+.lm-graph-in > svg { position: absolute; inset: 0; z-index: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.lm-graph-empty { padding: 1rem 0; text-align: center; color: var(--text-3); }
+.lm-graph [hidden] { display: none; }
+.lm-gn {
+  position: absolute; z-index: 1; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0 .5rem; align-content: center; align-items: center; padding: 0 .7rem; cursor: pointer;
+  background: var(--panel-solid); border: 1px solid color-mix(in oklab, var(--tone, var(--line-2)) 48%, var(--line-2)); border-radius: 2px; transition: opacity .2s, border-color .3s, box-shadow .3s;
+}
+.lm-gn svg { width: .7rem; height: .7rem; color: var(--tone, var(--text-3)); fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+.lm-gn b { font-weight: 500; font-size: .875rem; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lm-gn small { grid-column: 2; font: 300 .72rem/1.3 var(--num); color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lm-gn[data-active] { border-color: var(--accent); box-shadow: 0 0 1rem -.25rem color-mix(in oklab, var(--accent) calc(var(--bloom) * 100%), transparent); }
+.lm-gn:hover, .lm-gn[data-on] { border-color: var(--accent); }
+.lm-gn:focus-visible { outline-offset: 3px; }
+
+.lm-graph .e { fill: none; stroke: color-mix(in oklab, var(--text-3) 55%, transparent); stroke-width: 1; vector-effect: non-scaling-stroke; transition: stroke .2s, opacity .2s; }
+.lm-graph .ah { fill: color-mix(in oklab, var(--text-3) 80%, transparent); stroke: none; transition: fill .2s, opacity .2s; }
+.lm-graph .back .e { stroke-dasharray: 4 4; }
+.lm-graph .live .e { stroke: var(--accent); stroke-dasharray: 2 7; animation: lm-gr-dash 6s linear infinite; }
+.lm-graph .live .ah { fill: var(--accent); }
+.lm-graph .hl .e { stroke: var(--accent); stroke-dasharray: none; animation: none; }
+.lm-graph .hl .ah { fill: var(--accent); }
+.lm-graph[data-focus] .ge:not(.hl) .e, .lm-graph[data-focus] .ge:not(.hl) .ah { opacity: .18; }
+.lm-graph[data-focus] .lm-gn:not([data-on]):not([data-near]) { opacity: .35; }
+.lm-ge-l { position: absolute; z-index: 2; transform: translate(-50%, -50%); max-width: 7rem; padding: 0 .35rem; font: 300 .68rem/1.5 var(--num); color: var(--text-2); background: var(--panel-solid); border-radius: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; pointer-events: none; }
+@keyframes lm-gr-dash { to { stroke-dashoffset: -9; } }
+@media (prefers-reduced-motion: reduce) { .lm-graph .live .e { animation: none; } }

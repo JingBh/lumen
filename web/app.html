@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src data:; font-src 'self'">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lumen</title>
+  <link rel="stylesheet" href="fonts/fonts.css">
+  <link rel="stylesheet" href="ui.css">
+  <link rel="stylesheet" href="kit.css">
+  <style>
+    html, body { background: transparent; }
+    .lm-toast { position: fixed; left: 50%; bottom: 1.1rem; translate: -50% 0; max-width: calc(100% - 2rem); padding: .55rem .9rem; font-size: .8125rem; color: var(--text); background: var(--panel-solid); border: 1px solid var(--line-2); clip-path: polygon(0 0, 100% 0, 100% calc(100% - .5rem), calc(100% - .5rem) 100%, 0 100%); animation: lm-toast-in .2s ease-out; z-index: 10; }
+    @keyframes lm-toast-in { from { opacity: 0; translate: -50% .5rem; } }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <script src="vendor/json-render-core.js"></script>
+  <script src="ui.js"></script>
+  <script src="kit.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

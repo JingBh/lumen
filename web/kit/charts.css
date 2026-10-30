@@ -1,0 +1,174 @@
+/* charts — Sparkline, Heatmap, Histogram, Scatter, Treemap, StackedBar, Gantt, Funnel, Bullet */
+
+/* ---------- Shared: the readout line over a plot drawn in real pixels ---------- */
+.lm-cx { container: cx / inline-size; flex: 1 0 auto; display: flex; flex-direction: column; gap: .5rem; min-width: min(100%, 14rem); }
+.lm-cx-ro { display: flex; align-items: baseline; gap: .15rem .9rem; min-height: 1.3rem; overflow: hidden; font-size: .8125rem; color: var(--text-2); white-space: nowrap; }
+.lm-cx-ro .a { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.lm-cx-ro .b { flex: none; font: 300 .75rem var(--num); color: var(--text-3); }
+.lm-cx-ro b { font: 300 .8125rem var(--num); color: var(--text); }
+.lm-cx-ro small { color: var(--text-3); font-size: inherit; }
+.lm-cx-ro i { display: inline-block; width: .6rem; height: .6rem; margin-right: .45rem; background: var(--tone, var(--accent)); border-radius: 1px; }
+.lm-cx-ro svg { width: .7rem; height: .7rem; margin-right: .3rem; vertical-align: -.05em; color: var(--tone, var(--text-3)); fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+.lm-cx .plot { position: relative; flex: 1 1 0; min-height: 8rem; }
+.lm-cx .plot:focus-visible { outline-offset: 4px; }
+.lm-cx .plot svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; font: 300 .72rem var(--num); touch-action: pan-y; }
+.lm-cx text { fill: var(--text-3); }
+.lm-cx .gl { stroke: var(--grid); }
+.lm-cx .bl, .lm-cx .tk { stroke: var(--line-2); }
+.lm-cx[data-snap] *, .lm-spk[data-snap] * { transition: none !important; }
+.lm-cx-more { margin-left: .5rem; font: 300 .75rem var(--num); color: var(--text-3); white-space: nowrap; }
+
+/* Marks animate when the data moves, and fade in when they first appear. */
+.lm-cx .mk, .lm-spk .mk { transition: x .4s, y .4s, width .4s, height .4s, cx .4s, cy .4s, r .4s, d .4s, fill-opacity .4s, opacity .3s, transform .4s; transition-timing-function: cubic-bezier(.2, .7, .2, 1); animation: lm-cx-in .4s backwards; }
+@keyframes lm-cx-in { from { opacity: 0; } }
+
+/* ---------- Sparkline ---------- */
+.lm-spk { container: spk / inline-size; flex: 1 1 0; min-width: min(100%, 11rem); }
+.lm-spk .in { display: flex; align-items: center; gap: .9rem; min-height: 2.4rem; }
+.lm-spk .t { flex: 0 1 38%; min-width: 5rem; max-width: 10rem; display: flex; flex-direction: column; }
+.lm-spk .l { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .8125rem; line-height: 1.35; color: var(--text-3); }
+.lm-spk .l:empty { display: none; }
+.lm-spk .v { display: block; max-width: 100%; font: 300 1.2rem/1.2 var(--num); letter-spacing: -.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lm-spk .v > svg { margin-right: .3em; }
+.lm-spk .v > small { margin-left: .3em; }
+.lm-spk .v small { font-size: .55em; letter-spacing: 0; color: var(--text-3); }
+.lm-spk .v svg { align-self: center; width: .7rem; height: .7rem; color: var(--tone, var(--accent)); fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+.lm-spk .p { position: relative; flex: 1 1 4rem; min-width: 3rem; min-height: 2.1rem; align-self: stretch; cursor: crosshair; }
+.lm-spk .p svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.lm-spk .ln { fill: none; stroke: var(--tone, var(--accent)); stroke-width: 1.6; stroke-linejoin: round; stroke-linecap: round; filter: drop-shadow(0 0 3px color-mix(in oklab, var(--tone, var(--accent)) calc(var(--bloom) * 100%), transparent)); }
+.lm-spk .dot { fill: var(--tone, var(--accent)); stroke: var(--panel-solid); stroke-width: 2; }
+.lm-spk .ex { fill: var(--panel-solid); stroke: var(--tone, var(--accent)); stroke-width: 1.3; }
+.lm-spk .bar { fill: var(--tone, var(--accent)); opacity: .5; }
+.lm-spk .bar.now, .lm-spk .bar.hot { opacity: 1; }
+.lm-spk .bar.dim { opacity: .3; }
+.lm-spk .bl { stroke: var(--line-2); }
+.lm-spk .xh { stroke: var(--line-2); }
+@container spk (max-width: 13rem) {
+  .lm-spk .in { flex-direction: column; align-items: stretch; gap: .3rem; }
+  .lm-spk .t { max-width: none; flex-direction: row; align-items: baseline; justify-content: space-between; gap: .75rem; }
+  .lm-spk .p { flex: none; height: 2.1rem; }
+}
+
+/* ---------- StackedBar ---------- */
+.lm-sb { flex: 1 0 auto; min-width: min(100%, 12rem); display: flex; flex-direction: column; gap: .6rem; }
+.lm-sb .top { display: flex; align-items: baseline; justify-content: space-between; gap: .75rem; min-height: 1.2rem; font-size: .875rem; }
+.lm-sb .l { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-2); }
+.lm-sb .r { flex: none; display: inline-flex; align-items: baseline; gap: .35em; font: 300 .8125rem var(--num); color: var(--text-3); white-space: nowrap; }
+.lm-sb .r b { font-weight: 300; color: var(--text); }
+.lm-sb .r .g { align-self: center; display: inline-flex; color: var(--tone); }
+.lm-sb .r svg { width: .7rem; height: .7rem; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+.lm-sb .bar { display: flex; gap: 2px; height: .85rem; }
+.lm-sb .seg { flex: 0 0 0%; min-width: 2px; background: var(--tone, var(--accent)); border-radius: 1px; box-shadow: 0 0 .6rem -.2rem color-mix(in oklab, var(--tone, var(--accent)) calc(var(--bloom) * 100%), transparent); transition: flex-grow .6s cubic-bezier(.2, .7, .2, 1), opacity .2s; }
+.lm-sb .seg.rest { background: repeating-linear-gradient(90deg, var(--grid) 0 1px, transparent 1px 8px), color-mix(in oklab, var(--line) 70%, transparent); box-shadow: none; }
+.lm-sb .lg { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 1fr)); gap: .35rem 1.6rem; }
+.lm-sb .it { display: grid; grid-template-columns: .6rem minmax(0, 1fr) auto auto; gap: 0 .55rem; align-items: center; font-size: .8125rem; transition: opacity .2s; }
+.lm-sb .sw { width: .6rem; height: .6rem; background: var(--tone, var(--accent)); border-radius: 1px; }
+.lm-sb .it.rest .sw { background: none; box-shadow: inset 0 0 0 1px var(--text-3); }
+.lm-sb .n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-2); }
+.lm-sb .it b { font: 300 .8125rem var(--num); color: var(--text); }
+.lm-sb .it small { min-width: 3.4ch; text-align: right; font: 300 .72rem var(--num); color: var(--text-3); }
+.lm-sb .dim { opacity: .4; }
+
+/* ---------- Funnel ---------- */
+.lm-fn { flex: 1 0 auto; min-width: min(100%, 12rem); display: flex; flex-direction: column; }
+.lm-fn .stp { display: flex; flex-direction: column; }
+.lm-fn .top { display: flex; align-items: baseline; gap: .5rem; font-size: .875rem; }
+.lm-fn .l { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-2); }
+.lm-fn .v { font: 300 .875rem var(--num); color: var(--text); white-space: nowrap; }
+.lm-fn .g { align-self: center; display: inline-flex; color: var(--tone); }
+.lm-fn .g:empty { display: none; }
+.lm-fn svg { width: .7rem; height: .7rem; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+.lm-fn .bar { display: flex; justify-content: center; height: 1.05rem; margin-top: .3rem; }
+.lm-fn .bar i { width: var(--w); min-width: 2px; background: color-mix(in oklab, var(--tone) calc(var(--a) * 100%), transparent); box-shadow: 0 0 .6rem -.1rem color-mix(in oklab, var(--tone) calc(var(--bloom) * 100%), transparent); transition: width .6s cubic-bezier(.2, .7, .2, 1), background .3s; }
+.lm-fn .cv { position: relative; display: flex; align-items: center; justify-content: center; gap: .3rem; height: 1.6rem; font: 300 .75rem var(--num); color: var(--text-2); }
+.lm-fn .cv[hidden] { display: none; }
+.lm-fn .cv::before { content: ''; position: absolute; inset: 0; background: color-mix(in oklab, var(--tone) 14%, transparent); clip-path: polygon(calc(50% - var(--w0) / 2) 0, calc(50% + var(--w0) / 2) 0, calc(50% + var(--w) / 2) 100%, calc(50% - var(--w) / 2) 100%); transition: clip-path .6s cubic-bezier(.2, .7, .2, 1); }
+.lm-fn .cv > * { position: relative; }
+.lm-fn .cv svg { width: .6rem; height: .6rem; stroke-width: 1.3; }
+.lm-fn .sum { display: flex; justify-content: space-between; gap: .75rem; margin-top: .7rem; padding-top: .5rem; border-top: 1px solid var(--line); font: 300 .75rem var(--num); color: var(--text-3); }
+.lm-fn .sum[hidden] { display: none; }
+.lm-fn .sum b { font-weight: 300; color: var(--text); }
+
+/* ---------- Bullet ---------- */
+.lm-bl { --band-1: color-mix(in oklab, var(--text) 24%, transparent); --band-2: color-mix(in oklab, var(--text) 15%, transparent); --band-3: color-mix(in oklab, var(--text) 8%, transparent); flex: 1 0 auto; min-width: min(100%, 12rem); display: flex; flex-direction: column; gap: .95rem; }
+.lm-bl .row { display: flex; flex-direction: column; gap: .35rem; }
+.lm-bl .top { display: flex; align-items: baseline; gap: .5rem; font-size: .875rem; }
+.lm-bl .l { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-2); }
+.lm-bl .v { font: 300 .8125rem var(--num); color: var(--text-3); white-space: nowrap; }
+.lm-bl .v b { font-weight: 300; color: var(--text); }
+.lm-bl .g { align-self: center; display: inline-flex; color: var(--tone); }
+.lm-bl .g:empty { display: none; }
+.lm-bl svg { width: .7rem; height: .7rem; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+.lm-bl .gr { position: relative; height: 1.1rem; background-color: color-mix(in oklab, var(--text) 4%, transparent); background-image: var(--bands, none); box-shadow: inset 0 0 0 1px var(--line); }
+.lm-bl .val { position: absolute; left: 0; top: 33%; bottom: 33%; width: var(--v); min-width: 2px; background: var(--tone); box-shadow: 0 0 .6rem -.1rem color-mix(in oklab, var(--tone) calc(var(--bloom) * 100%), transparent); transition: width .7s cubic-bezier(.2, .7, .2, 1); }
+.lm-bl .tg { position: absolute; left: var(--t); top: 12%; bottom: 12%; width: 2px; margin-left: -1px; background: var(--text); transition: left .7s cubic-bezier(.2, .7, .2, 1); }
+.lm-bl .no-target .tg { display: none; }
+.lm-bl .foot:empty { display: none; }
+
+/* ---------- Heatmap ---------- */
+.lm-hm .plot { flex: none; min-height: 0; }
+.lm-hm .cell { fill: var(--tone, var(--accent)); }
+.lm-hm .cell.na { fill: none; stroke: var(--grid); }
+.lm-hm .peak, .lm-hm .hv { fill: none; stroke: var(--text); pointer-events: none; }
+.lm-hm .peak { stroke-width: 1.2; }
+.lm-hm .hv { stroke-width: 1.6; }
+.lm-hm .val { fill: var(--text); font-size: .68rem; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+.lm-hm .val.alt { fill: var(--accent-ink); }
+.lm-hm .scale[hidden] { display: none; }
+.lm-hm .scale { display: inline-flex; align-items: center; gap: .4rem; }
+.lm-hm .ramp { width: 4.5rem; height: .45rem; margin: 0; border-radius: 0; background: linear-gradient(90deg, color-mix(in oklab, var(--tone, var(--accent)) 8%, transparent), var(--tone, var(--accent))); box-shadow: inset 0 0 0 1px var(--line); }
+.lm-cx-ro .pk { background: none; box-shadow: inset 0 0 0 1px var(--text); }
+@container cx (max-width: 20rem) { .lm-hm .ramp { width: 2.5rem; } }
+
+/* ---------- Histogram and Scatter ---------- */
+.lm-hist, .lm-scat { flex: 1 1 15rem; min-height: 12rem; max-height: 26rem; }
+.lm-hist .bar { fill: var(--tone, var(--accent)); opacity: .85; }
+.lm-hist .bar.on { opacity: 1; }
+.lm-hist .bar.dim { opacity: .45; }
+.lm-hist .rule { stroke: var(--text-2); }
+.lm-hist .rl { fill: var(--text-2); }
+.lm-cx-ro .kv { margin-right: .9rem; }
+.lm-scat .pt { fill: var(--tone, var(--accent)); fill-opacity: .72; }
+.lm-scat .pt.ring { stroke: var(--panel-solid); stroke-width: 1; }
+.lm-scat .pt.x { fill: none; stroke: var(--tone, var(--accent)); stroke-width: 2; stroke-linecap: round; }
+.lm-scat .hv { fill: none; stroke: var(--text); stroke-width: 1.5; pointer-events: none; }
+.lm-cx .ttl { fill: var(--text-2); }
+
+/* ---------- Treemap ---------- */
+.lm-tm .plot { flex: none; min-height: 0; max-height: 22rem; aspect-ratio: 16 / 9; }
+@container cx (max-width: 30rem) { .lm-tm .plot { aspect-ratio: 4 / 3; } }
+.lm-tm[data-empty] .plot { aspect-ratio: auto; height: 0; }
+@container cx (max-width: 18rem) { .lm-tm .plot { aspect-ratio: 1; } }
+.lm-tm .cell { position: absolute; display: flex; flex-direction: column; gap: .05rem; min-width: 0; overflow: hidden; padding: .3rem .4rem; border: 1px solid color-mix(in oklab, var(--tone) 55%, transparent); background: linear-gradient(160deg, color-mix(in oklab, var(--tone) 30%, transparent), color-mix(in oklab, var(--tone) 9%, transparent)); transition: left .5s, top .5s, width .5s, height .5s, background .2s, border-color .2s; transition-timing-function: cubic-bezier(.2, .7, .2, 1); animation: lm-cx-in .4s backwards; }
+.lm-tm .cell.on, .lm-tm .cell:hover { border-color: var(--tone); background: linear-gradient(160deg, color-mix(in oklab, var(--tone) 44%, transparent), color-mix(in oklab, var(--tone) 16%, transparent)); }
+.lm-tm .cell b { font-size: .8125rem; font-weight: 500; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lm-tm .cell .n { font: 300 .72rem/1.25 var(--num); color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lm-tm .cell small { font-size: .72rem; line-height: 1.25; color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lm-tm .cell[data-fit='0'] { padding: 0; }
+.lm-tm .cell[data-fit='0'] > * { display: none; }
+.lm-tm .cell[data-fit='1'] > :not(b) { display: none; }
+.lm-tm .cell[data-fit='2'] > small { display: none; }
+
+/* ---------- Gantt ---------- */
+.lm-gt .plot { flex: none; min-height: 0; }
+.lm-gt .bar { fill: color-mix(in oklab, var(--tone) 30%, transparent); stroke: var(--tone); stroke-width: 1; pointer-events: none; }
+.lm-gt .bar.failed { stroke-dasharray: 4 2; }
+.lm-gt .bar.on { fill: color-mix(in oklab, var(--tone) 52%, transparent); }
+.lm-gt .live { fill: var(--tone); pointer-events: none; animation: lm-cx-pulse 1.4s ease-in-out infinite; }
+@keyframes lm-cx-pulse { 50% { opacity: .35; } }
+.lm-gt .fx { fill: none; stroke: var(--tone); stroke-width: 1.8; stroke-linecap: round; pointer-events: none; }
+.lm-gt .lbl { fill: var(--text); pointer-events: none; }
+.lm-gt .lbl.out { fill: var(--text-2); }
+.lm-gt .dim { opacity: .35; }
+.lm-gt .grp { fill: var(--text-2); }
+.lm-gt .sw { fill: var(--tone); }
+.lm-gt .sep { stroke: var(--line); }
+.lm-gt .hit { fill: transparent; }
+.lm-gt .tally { display: inline-flex; align-items: baseline; gap: .25rem; margin-right: .9rem; }
+.lm-gt .tally svg { align-self: center; margin: 0; }
+.lm-gt .g svg { margin-right: .45rem; }
+@container cx (max-width: 26rem) { .lm-gt .rng { display: none; } }
+
+/* Zero is nothing: no sliver. */
+.lm-fn .stp[data-empty] .bar i { min-width: 0; }
+.lm-bl .zero .val { min-width: 0; }

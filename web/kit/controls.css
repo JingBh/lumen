@@ -1,0 +1,109 @@
+/* controls — Choice, Input, Toggle, Slider */
+
+/* ---------- Choice ---------- */
+.lm-choice .opt:not([data-tone]) { --tone: initial; } /* a tone is inherited from containers, so an option without one resets it */
+.lm-choice { display: flex; flex-direction: column; gap: .55rem; min-width: 0; }
+.lm-choice .cap { font-size: .8125rem; font-weight: 500; color: var(--text-3); overflow-wrap: anywhere; }
+.lm-choice .list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); gap: .5rem; }
+.lm-choice[data-layout='list'] .list { grid-template-columns: minmax(0, 1fr); }
+.lm-choice[data-layout='chips'] .list { display: flex; flex-wrap: wrap; }
+
+.lm-choice .opt {
+  --cut: .5rem; --sel: var(--tone, var(--accent)); --edge: var(--line-2);
+  position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0 .7rem; align-items: start; min-width: 0;
+  padding: .65rem .85rem; text-align: left; font: inherit; color: var(--text); background: transparent; cursor: pointer;
+  border: 1px solid var(--edge); border-radius: 0;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, 0 100%);
+  transition: border-color .15s, background .15s;
+}
+.lm-choice .opt::after { content: ''; position: absolute; right: -1px; bottom: -1px; width: var(--cut); height: var(--cut); pointer-events: none; background: linear-gradient(to bottom right, transparent calc(50% - 1.2px), var(--edge) calc(50% - 1.2px), var(--edge) calc(50% - .2px), transparent calc(50% - .2px)); }
+.lm-choice .opt:hover { --edge: var(--sel); background: color-mix(in oklab, var(--sel) 8%, transparent); }
+.lm-choice .opt:focus-visible { outline: 2px solid var(--accent); outline-offset: -4px; }
+.lm-choice .opt[aria-checked='true'] { --edge: var(--sel); background: color-mix(in oklab, var(--sel) 14%, transparent); }
+
+.lm-choice .mark { position: relative; display: grid; place-items: center; width: 1rem; height: 1rem; margin-top: .14rem; color: var(--sel); border: 1px solid color-mix(in oklab, var(--sel) 45%, var(--text-3)); transition: border-color .15s, background .15s; }
+.lm-choice .opt[role='radio'] .mark { border-radius: 50%; }
+.lm-choice .opt[role='checkbox'] .mark { border-radius: 2px; }
+.lm-choice .mark svg { grid-area: 1 / 1; width: .62rem; height: .62rem; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; opacity: 0; transform: scale(.6); transition: opacity .15s, transform .15s; }
+.lm-choice .opt[role='radio'] .mark svg { display: none; }
+.lm-choice .opt[role='radio'] .mark::after { content: ''; width: .5rem; height: .5rem; border-radius: 50%; background: currentColor; opacity: 0; transform: scale(.4); transition: opacity .15s, transform .15s; }
+.lm-choice .opt[aria-checked='true'] .mark { border-color: var(--sel); }
+.lm-choice .opt[role='checkbox'][aria-checked='true'] .mark { background: color-mix(in oklab, var(--sel) 20%, transparent); }
+.lm-choice .opt[aria-checked='true'] .mark svg, .lm-choice .opt[aria-checked='true'] .mark::after { opacity: 1; transform: none; }
+
+.lm-choice .txt { display: flex; flex-direction: column; gap: .1rem; min-width: 0; }
+.lm-choice .txt b { font-size: .9rem; font-weight: 500; line-height: 1.45; overflow-wrap: anywhere; }
+.lm-choice .txt small { font-size: .8125rem; line-height: 1.45; color: var(--text-3); overflow-wrap: anywhere; }
+
+.lm-choice[data-layout='chips'] .opt { --cut: 0px; padding: .3rem .75rem .3rem .6rem; gap: 0 .5rem; align-items: center; border-radius: 2px; clip-path: none; max-width: 100%; }
+.lm-choice[data-layout='chips'] .opt::after { display: none; }
+.lm-choice[data-layout='chips'] .mark { margin-top: 0; }
+.lm-choice[data-layout='chips'] .txt { flex-direction: row; flex-wrap: wrap; align-items: baseline; gap: 0 .5rem; }
+.lm-choice[data-layout='chips'] .opt:focus-visible { outline-offset: 2px; }
+
+/* ---------- Input ---------- */
+.lm-input { display: flex; flex-wrap: wrap; gap: .5rem; align-items: flex-start; min-width: 0; }
+.lm-input[data-multi] { align-items: flex-end; }
+.lm-input .fld {
+  flex: 100 1 12rem; width: auto; min-width: 0; margin: 0; padding: 0 .75rem; font: 400 .9375rem/1.5 var(--font); color: var(--text);
+  background: color-mix(in oklab, var(--bg) 45%, transparent); border: 1px solid var(--line-2); border-radius: 2px; outline: none; resize: none;
+  transition: border-color .15s, box-shadow .15s;
+}
+.lm-input input.fld { height: 2.25rem; }
+.lm-input textarea.fld { min-height: calc(var(--rows, 3) * 1.5em + 1rem); max-height: 14rem; padding-block: .5rem; field-sizing: content; overflow-y: auto; }
+.lm-input .fld::placeholder { color: var(--text-3); opacity: .85; }
+.lm-input .fld:hover { border-color: color-mix(in oklab, var(--accent) 50%, var(--line-2)); }
+.lm-input .fld:focus-visible { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent), 0 0 1rem -.25rem color-mix(in oklab, var(--accent) calc(var(--bloom) * 100%), transparent); }
+.lm-input .lm-btn { flex: 1 0 auto; max-width: 100%; text-align: center; } /* grows only when it wraps onto a row of its own */
+.lm-input .lm-btn:disabled { opacity: .4; pointer-events: none; }
+.lm-input[data-sent] .fld { animation: lm-sent .9s ease-out; }
+@keyframes lm-sent { from { border-color: var(--ok); box-shadow: 0 0 0 1px var(--ok), 0 0 1.2rem -.2rem var(--ok); } }
+
+/* ---------- Toggle ---------- */
+.lm-toggle {
+  --cut: .5rem; --edge: var(--line-2);
+  position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 0 .75rem; align-items: center; width: 100%; min-width: 0;
+  padding: .6rem .85rem; text-align: left; font: inherit; color: var(--text); background: transparent; cursor: pointer;
+  border: 1px solid var(--edge); border-radius: 0;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, 0 100%);
+  transition: border-color .15s, background .15s;
+}
+.lm-toggle::after { content: ''; position: absolute; right: -1px; bottom: -1px; width: var(--cut); height: var(--cut); pointer-events: none; background: linear-gradient(to bottom right, transparent calc(50% - 1.2px), var(--edge) calc(50% - 1.2px), var(--edge) calc(50% - .2px), transparent calc(50% - .2px)); }
+.lm-toggle:hover { --edge: var(--accent); background: color-mix(in oklab, var(--accent) 8%, transparent); }
+.lm-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: -4px; }
+.lm-toggle .txt { display: flex; flex-direction: column; gap: .1rem; min-width: 0; }
+.lm-toggle .txt b { font-size: .9rem; font-weight: 500; line-height: 1.45; overflow-wrap: anywhere; }
+.lm-toggle .txt b:empty { display: none; }
+.lm-toggle .txt small { font-size: .8125rem; line-height: 1.45; color: var(--text-3); overflow-wrap: anywhere; }
+.lm-toggle .st { font: 300 .75rem var(--num); color: var(--text-3); transition: color .15s; }
+.lm-toggle .trk { position: relative; width: 2.5rem; height: 1.3rem; border: 1px solid var(--line-2); border-radius: 2px; transition: border-color .2s, background .2s, box-shadow .2s; }
+.lm-toggle .trk i {
+  position: absolute; left: .17rem; top: 50%; width: .85rem; height: .85rem; margin-top: -.425rem; background: var(--text-3);
+  clip-path: polygon(0 0, 100% 0, 100% 70%, 70% 100%, 0 100%); transition: transform .2s cubic-bezier(.2, .8, .2, 1), background .2s;
+}
+.lm-toggle[aria-checked='true'] { --edge: color-mix(in oklab, var(--accent) 60%, var(--line-2)); }
+.lm-toggle[aria-checked='true'] .st { color: var(--text); }
+.lm-toggle[aria-checked='true'] .trk { border-color: var(--accent); background: color-mix(in oklab, var(--accent) 22%, transparent); box-shadow: 0 0 .9rem -.3rem color-mix(in oklab, var(--accent) calc(var(--bloom) * 100%), transparent); }
+.lm-toggle[aria-checked='true'] .trk i { background: var(--accent); transform: translateX(1.2rem); }
+
+/* ---------- Slider ---------- */
+.lm-slider { display: flex; flex-direction: column; gap: .15rem; min-width: 0; }
+.lm-slider .top { display: flex; align-items: baseline; justify-content: space-between; gap: .75rem 1rem; }
+.lm-slider .lbl { min-width: 0; font-size: .875rem; color: var(--text-2); overflow-wrap: anywhere; }
+.lm-slider .val { flex: none; font: 300 .9375rem var(--num); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.lm-slider .val small { margin-left: .2em; font-size: .75rem; color: var(--text-3); }
+.lm-slider .rng { --th: .65rem; --tr: .45rem; -webkit-appearance: none; appearance: none; width: 100%; height: 1.6rem; margin: 0; padding: 0; background: transparent; cursor: pointer; }
+.lm-slider .rng::-webkit-slider-runnable-track {
+  height: var(--tr); border: 0;
+  background:
+    linear-gradient(90deg, var(--accent) calc(var(--th) / 2 + (100% - var(--th)) * var(--f, 0)), transparent 0),
+    repeating-linear-gradient(90deg, var(--grid) 0 1px, transparent 1px 10%),
+    color-mix(in oklab, var(--line) 70%, transparent);
+}
+.lm-slider .rng::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none; width: var(--th); height: 1.25rem; margin-top: calc((var(--tr) - 1.25rem) / 2); border: 0; border-radius: 0; background: var(--accent);
+  clip-path: polygon(0 0, 100% 0, 100% 70%, 70% 100%, 0 100%); transition: background .15s;
+}
+.lm-slider .rng:hover::-webkit-slider-thumb { background: color-mix(in oklab, var(--accent) 80%, white); }
+.lm-slider .rng:active::-webkit-slider-thumb { background: color-mix(in oklab, var(--accent) 70%, white); }
+.lm-slider .ends { display: flex; justify-content: space-between; gap: 1rem; font: 300 .72rem var(--num); color: var(--text-3); }

@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lumen · 预览</title>
+  <link rel="stylesheet" href="fonts/fonts.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wdth,wght@75..100,400..700&family=Martian+Mono:wdth,wght@75..112.5,100..800&display=swap">
+  <link rel="stylesheet" href="ui.css?v=8">
+  <link rel="stylesheet" href="demo.css?v=2">
+  <style>
+    html { background: var(--bg); }
+    body { display: flex; flex-direction: column; height: 100dvh; overflow: hidden; }
+    .tools { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem 1rem; padding: .7rem 1rem; border-bottom: 1px solid var(--line); background: color-mix(in oklab, var(--bg) 82%, transparent); flex: none; position: relative; z-index: 2; }
+    .tools b { font-weight: 600; }
+    .tools .readout { margin-left: auto; font: 300 .75rem var(--num); color: var(--text-3); }
+    .seg { display: inline-flex; border: 1px solid var(--line-2); border-radius: 2px; overflow: hidden; }
+    .seg button { display: inline-flex; align-items: center; gap: .45rem; font: 500 .8125rem var(--font); padding: .3rem .7rem; color: var(--text-2); background: none; border: 0; border-right: 1px solid var(--line); cursor: pointer; }
+    .seg button:last-child { border-right: 0; }
+    .seg button:hover { color: var(--text); }
+    .seg button[aria-pressed='true'] { color: var(--accent-ink); background: var(--accent); }
+    .seg i { width: .65rem; height: .65rem; border-radius: 50%; background: var(--sw); box-shadow: 0 0 0 1px oklch(1 0 0 / .35); }
+
+    #stage { position: relative; flex: 1; min-height: 0; display: grid; place-items: center; padding: 1rem; overflow: hidden; }
+    #frame { position: relative; }
+    #win { position: absolute; left: 0; top: 0; }
+    #screen { position: absolute; left: 0; top: 0; border: 0; display: block; transform-origin: 0 0; color-scheme: normal; background: transparent; }
+    #grip { position: absolute; right: -.9rem; bottom: -.9rem; width: 1.1rem; height: 1.1rem; cursor: nwse-resize; border-right: 2px solid var(--accent); border-bottom: 2px solid var(--accent); touch-action: none; }
+  </style>
+</head>
+<body>
+  <div class="tools">
+    <b>Lumen</b>
+    <div class="seg" id="scn" role="group" aria-label="场景">
+      <button data-v="ops">集群诊断</button><button data-v="report">长文报告</button><button data-v="minimal">极简</button><button data-v="overload">压力测试</button>
+    </div>
+    <div class="seg" id="size" role="group" aria-label="窗口尺寸">
+      <button data-v="360x640">窄屏</button><button data-v="390x844">手机</button><button data-v="820x1180">平板</button><button data-v="1280x800">笔记本</button><button data-v="1920x1080">桌面</button><button data-v="2560x1080">超宽</button><button data-v="640x420">小窗</button>
+    </div>
+    <div class="seg" id="theme" role="group" aria-label="明暗">
+      <button data-v="dark">暗</button><button data-v="light">亮</button>
+    </div>
+    <div class="seg" id="palette" role="group" aria-label="配色"></div>
+    <div class="seg" id="chrome" role="group" aria-label="窗口边框">
+      <button data-v="drag">带拖动区</button><button data-v="plain">不带拖动区</button>
+    </div>
+    <span class="readout" id="readout"></span>
+  </div>
+  <main id="stage" class="demo-wall">
+    <div id="frame">
+      <div id="win"><iframe id="screen" title="Lumen screen" allowtransparency="true"></iframe><i id="grip" title="拖动调整窗口大小"></i></div>
+    </div>
+  </main>
+  <script>
+    const PALETTES = [
+      ['ion', '离子', 'oklch(.76 .13 270)'], ['cryo', '低温', 'oklch(.83 .12 205)'], ['ember', '余烬', 'oklch(.8 .15 62)'],
+      ['phosphor', '磷光', 'oklch(.85 .17 155)'], ['nebula', '星云', 'oklch(.76 .15 310)'], ['graphite', '石墨', 'oklch(.94 .025 255)'],
+    ]
+    const q = new URLSearchParams(location.search)
+    const st = {
+      s: q.get('s') || 'ops', theme: q.get('theme') || 'dark', palette: q.get('palette') || 'cryo', chrome: q.get('chrome') || 'drag',
+      w: +q.get('w') || 1280, h: +q.get('h') || 800, collapsed: null, off: { x: 0, y: 0 },
+    }
+    const $ = (id) => document.getElementById(id)
+    const screen = $('screen'), frame = $('frame'), win = $('win'), stage = $('stage')
+    $('palette').append(...PALETTES.map(([v, name, sw]) => {
+      const b = document.createElement('button')
+      b.dataset.v = v
+      b.title = name
+      b.innerHTML = `<i style="--sw:${sw}"></i>${name}`
+      return b
+    }))
+
+    const pressed = (id, v) => document.querySelectorAll(`#${id} button`).forEach((b) => b.setAttribute('aria-pressed', b.dataset.v === v))
+    const scale = () => {
+      const box = stage.getBoundingClientRect()
+      return Math.min(1, (box.width - 48) / st.w, (box.height - 48) / st.h)
+    }
+    const layout = () => {
+      const k = scale(), cur = st.collapsed ?? { w: st.w, h: st.h }
+      frame.style.cssText = `width:${st.w * k}px;height:${st.h * k}px`
+      // The window (or the collapsed orb) can be dragged around the stage, partly past its edges.
+      const sb = stage.getBoundingClientRect(), fb = frame.getBoundingClientRect(), ww = cur.w * k, wh = cur.h * k
+      const keep = 80
+      st.off.x = Math.min(Math.max(st.off.x, sb.left - fb.left - (ww - keep)), sb.right - fb.left - keep)
+      st.off.y = Math.min(Math.max(st.off.y, sb.top - fb.top), sb.bottom - fb.top - keep / 2)
+      win.style.cssText = `width:${ww}px;height:${wh}px;translate:${st.off.x}px ${st.off.y}px`
+      screen.style.cssText = `width:${cur.w}px;height:${cur.h}px;transform:scale(${k})`
+      $('grip').hidden = !!st.collapsed
+      $('readout').textContent = `${Math.round(st.w)} × ${Math.round(st.h)}，缩放 ${Math.round(k * 100)}%`
+      pressed('size', `${st.w}x${st.h}`)
+    }
+    const appearance = () => {
+      Object.assign(document.documentElement.dataset, { theme: st.theme, palette: st.palette })
+      screen.contentWindow?.postMessage({ appearance: { theme: st.theme, palette: st.palette, chrome: st.chrome } }, '*')
+      pressed('theme', st.theme); pressed('palette', st.palette); pressed('chrome', st.chrome)
+    }
+    const load = () => {
+      st.collapsed = null; st.off = { x: 0, y: 0 }
+      screen.src = `screen.html?s=${st.s}&theme=${st.theme}&palette=${st.palette}&chrome=${st.chrome}${q.get('stream') === '0' ? '&stream=0' : ''}`
+      pressed('scn', st.s)
+      layout()
+    }
+    const bind = (id, key, after) => { $(id).onclick = (e) => { const b = e.target.closest('button'); if (b) { st[key] = b.dataset.v; after() } } }
+
+    bind('scn', 's', load)
+    bind('theme', 'theme', appearance)
+    bind('palette', 'palette', appearance)
+    bind('chrome', 'chrome', appearance)
+    $('size').onclick = (e) => { const b = e.target.closest('button'); if (b) { [st.w, st.h] = b.dataset.v.split('x').map(Number); layout() } }
+    $('grip').onpointerdown = (e) => {
+      const k = scale(), x = e.clientX, y = e.clientY, w = st.w, h = st.h
+      $('grip').setPointerCapture(e.pointerId)
+      screen.style.pointerEvents = 'none'
+      $('grip').onpointermove = (m) => { st.w = Math.max(280, w + (m.clientX - x) / k); st.h = Math.max(240, h + (m.clientY - y) / k); layout() }
+      $('grip').onpointerup = () => { $('grip').onpointermove = null; screen.style.pointerEvents = '' }
+    }
+    addEventListener('resize', layout)
+    // What a native host would do: resize the OS window on collapse, keeping its top-right corner in place.
+    addEventListener('message', (e) => {
+      if (e.source !== screen.contentWindow) return
+      const m = e.data
+      if (m?.type === 'action') console.log('action from screen', m)
+      if (m?.type !== 'window') return
+      if (m.action === 'collapse') { st.off.x += (st.w - m.width) * scale(); st.collapsed = { w: m.width, h: m.height }; layout() }
+      else if (m.action === 'expand') { if (st.collapsed) st.off.x -= (st.w - st.collapsed.w) * scale(); st.collapsed = null; layout() }
+      else if (m.action === 'move') { st.off.x += m.dx; st.off.y += m.dy; layout() }
+    })
+    screen.addEventListener('load', appearance)
+    load(); appearance()
+  </script>
+</body>
+</html>

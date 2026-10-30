@@ -1,0 +1,502 @@
+/* Lumen — a generative-UI component set for a floating, transparent desktop window.
+   Light is the only material: glass panels in a tinted, text-free frame, white-light ink, colour reserved for meaning.
+   Switches on <html>: data-theme (dark | light), data-palette (see below), data-chrome (drag | plain).
+   Sizing: rem scales with the window, every component answers to its own container. */
+
+:root {
+  /* Palette parameters. Every [data-palette] below only overrides these. */
+  --hue: 218; --k: .9;                                   /* ground hue, ground chroma scale */
+  --acc-h: 200; --acc-c: .12; --acc-l: .84; --acc-lx: .52; /* accent: hue, chroma, lightness (dark / light) */
+  --t1: 175; --t2: 205; --t3: 235; --t4: 265; --tk: 1;   /* the core's spectrum: four hues, chroma scale */
+  --glass: .76;                                          /* panel opacity: nothing blurs what is behind, so panels carry their own */
+
+  /* Status: fixed, never themed, never reused as series colours. */
+  --ok: #0ca30c; --warn: #fab219; --serious: #ec835a; --err: #d03b3b;
+
+  --font: 'Instrument Sans', 'MiSans', 'PingFang SC', 'Noto Sans SC', 'Microsoft YaHei', system-ui, sans-serif;
+  --num: 'Martian Mono', 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, 'MiSans', 'PingFang SC', monospace;
+
+  --accent: oklch(var(--acc-l) var(--acc-c) var(--acc-h));
+  --c1: oklch(.86 calc(.12 * var(--tk)) var(--t1));
+  --c2: oklch(.76 calc(.13 * var(--tk)) var(--t2));
+  --c3: oklch(.74 calc(.16 * var(--tk)) var(--t3));
+  --c4: oklch(.8 calc(.14 * var(--tk)) var(--t4));
+}
+
+/* Graphite keeps Ion's spectrum for the core. Cryo is the default. */
+:root[data-palette='cryo']     { --hue: 218; --k: .9;  --acc-h: 200; --acc-c: .12; --acc-l: .84; --acc-lx: .52; --t1: 175; --t2: 205; --t3: 235; --t4: 265; }
+:root[data-palette='ion']      { --hue: 270; --k: 1;   --acc-h: 270; --acc-c: .13; --acc-l: .76; --acc-lx: .5;  --t1: 200; --t2: 270; --t3: 305; --t4: 5; }
+:root[data-palette='ember']    { --hue: 45;  --k: .6;  --acc-h: 62;  --acc-c: .15; --acc-l: .8;  --acc-lx: .55; --t1: 95;  --t2: 60;  --t3: 28;  --t4: 355; }
+:root[data-palette='phosphor'] { --hue: 160; --k: .6;  --acc-h: 155; --acc-c: .17; --acc-l: .85; --acc-lx: .55; --t1: 125; --t2: 155; --t3: 185; --t4: 215; }
+:root[data-palette='nebula']   { --hue: 305; --k: 1;   --acc-h: 310; --acc-c: .15; --acc-l: .76; --acc-lx: .5;  --t1: 250; --t2: 290; --t3: 330; --t4: 10; }
+:root[data-palette='graphite'] { --hue: 255; --k: .1;  --acc-h: 255; --acc-c: .025; --acc-l: .94; --acc-lx: .3; --t1: 200; --t2: 270; --t3: 305; --t4: 5; }
+
+/* ---------- Dark (default) ----------
+   The window's own chrome (rail, frame art, confirm dialog) is always dark, whatever the theme. */
+:root, :root[data-theme='dark'], .lm-rail, .lm-art, .lm-modal {
+  --accent: oklch(var(--acc-l) var(--acc-c) var(--acc-h));
+  --bg: oklch(.175 calc(.04 * var(--k)) var(--hue));
+  --glow-1: oklch(.62 calc(.17 * var(--k)) var(--acc-h) / .12);
+  --glow-2: oklch(.58 calc(.2 * var(--k)) var(--t3) / .09);
+  --frame-fill: oklch(.2 calc(.055 * var(--k)) var(--hue) / .2);
+  /* the window's header: dark in both themes, so the orb and the controls always have a dark ground */
+  --head-top: oklch(.16 calc(.05 * var(--k)) var(--hue) / .92);
+  --head-mid: oklch(.16 calc(.05 * var(--k)) var(--hue) / .6);
+  --frame-line: color-mix(in oklab, var(--accent) 58%, oklch(.85 calc(.06 * var(--k)) var(--hue)));
+  --panel-a: oklch(.29 calc(.075 * var(--k)) var(--hue) / var(--glass));
+  --panel-b: oklch(.2 calc(.058 * var(--k)) var(--hue) / calc(var(--glass) + .06));
+  --panel-solid: oklch(.22 calc(.06 * var(--k)) var(--hue) / .88);
+  --line: oklch(.85 calc(.08 * var(--k)) var(--hue) / .2);
+  --line-2: oklch(.85 calc(.08 * var(--k)) var(--hue) / .36);
+  --grid: oklch(.8 calc(.08 * var(--k)) var(--hue) / .1);
+  --edge-light: oklch(1 0 0 / .1);
+  --text: oklch(.95 calc(.02 * var(--k)) var(--hue));
+  --text-2: oklch(.8 calc(.05 * var(--k)) var(--hue));
+  --text-3: oklch(.72 calc(.06 * var(--k)) var(--hue));
+  --accent-ink: var(--bg);
+  --bloom: .55;
+  /* light on the glass: the lit edge of a panel, its glow when it changes, the glow of large numerals */
+  --lit: color-mix(in oklab, var(--accent) 72%, transparent);
+  --lit-glow: color-mix(in oklab, var(--accent) 45%, transparent);
+  --num-glow: 0 0 1.4rem color-mix(in oklab, var(--accent) 34%, transparent);
+  --head-band: color-mix(in oklab, var(--accent) 6%, transparent);
+  /* categorical series, fixed order (validated for dark surfaces) */
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+  --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
+}
+
+/* ---------- Light ---------- */
+:root[data-theme='light'] {
+  --bg: oklch(.94 calc(.02 * var(--k)) var(--hue));
+  --glow-1: oklch(.8 calc(.1 * var(--k)) var(--acc-h) / .24);
+  --glow-2: oklch(.85 calc(.08 * var(--k)) var(--t3) / .17);
+  --frame-fill: oklch(.92 calc(.04 * var(--k)) var(--hue) / .32);
+  --panel-a: oklch(.995 calc(.004 * var(--k)) var(--hue) / calc(var(--glass) + .2));
+  --panel-b: oklch(.965 calc(.022 * var(--k)) var(--hue) / calc(var(--glass) + .14));
+  --panel-solid: oklch(.98 calc(.012 * var(--k)) var(--hue) / .94);
+  --line: oklch(.4 calc(.1 * var(--k)) var(--hue) / .2);
+  --line-2: oklch(.4 calc(.1 * var(--k)) var(--hue) / .36);
+  --grid: oklch(.4 calc(.1 * var(--k)) var(--hue) / .12);
+  --edge-light: oklch(1 0 0 / .95);
+  --text: oklch(.21 calc(.06 * var(--k)) var(--hue));
+  --text-2: oklch(.4 calc(.06 * var(--k)) var(--hue));
+  --text-3: oklch(.46 calc(.05 * var(--k)) var(--hue));
+  --accent: oklch(var(--acc-lx) calc(var(--acc-c) * 1.35) var(--acc-h));
+  --accent-ink: #fff;
+  --bloom: .35;
+  --lit: oklch(1 0 0 / .95);
+  --lit-glow: color-mix(in oklab, var(--accent) 30%, transparent);
+  --num-glow: none;
+  --head-band: color-mix(in oklab, var(--accent) 10%, transparent);
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100;
+  --s5: #e87ba4; --s6: #008300; --s7: #6250d6; --s8: #e34948;
+}
+
+[data-tone='accent'] { --tone: var(--accent); }
+[data-tone='ok'] { --tone: var(--ok); }
+[data-tone='warn'] { --tone: var(--warn); }
+[data-tone='serious'] { --tone: var(--serious); }
+[data-tone='err'] { --tone: var(--err); }
+[data-tone='muted'] { --tone: var(--text-3); }
+[data-tone='s1'] { --tone: var(--s1); } [data-tone='s2'] { --tone: var(--s2); }
+[data-tone='s3'] { --tone: var(--s3); } [data-tone='s4'] { --tone: var(--s4); }
+[data-tone='s5'] { --tone: var(--s5); } [data-tone='s6'] { --tone: var(--s6); }
+[data-tone='s7'] { --tone: var(--s7); } [data-tone='s8'] { --tone: var(--s8); }
+
+/* ---------- Base: the page itself is always transparent ---------- */
+*, *::before, *::after { box-sizing: border-box; }
+* { scrollbar-width: thin; scrollbar-color: var(--line-2) transparent; }
+html { font-size: clamp(13px, .28vw + 10.4px, 18px); -webkit-text-size-adjust: 100%; background: transparent; }
+body {
+  margin: 0; height: 100dvh; overflow: hidden; background: transparent; color: var(--text);
+  font: 400 1rem/1.5 var(--font);
+  overflow-wrap: anywhere; /* a long URL, hash or path breaks rather than widening what holds it */
+  font-synthesis: none; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+}
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---------- Window: an irregular outline drawn in real pixels (see Window in ui.js) ----------
+   The glass fill is clipped to the same path as the stroke. The frame itself carries no text. */
+.lm-window { --m: 2px; --cap-w: 128px; --cap-h: 128px; position: fixed; inset: 0; color-scheme: dark; }
+.lm-window[data-state='collapsed'] { inset: 0 0 auto auto; width: min(var(--cap-w), 100vw); height: min(var(--cap-h), 100vh); }
+.lm-view {
+  position: absolute; inset: 0; display: flex; flex-direction: column; min-width: 0; overflow: hidden;
+  background: radial-gradient(40rem 26rem at 0% 0%, var(--glow-1), transparent 70%), radial-gradient(36rem 24rem at 100% 100%, var(--glow-2), transparent 70%), var(--frame-fill);
+}
+.lm-art { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.lm-art .rim { fill: none; stroke: var(--frame-line); stroke-width: 1.25; stroke-linejoin: round; filter: drop-shadow(0 0 5px color-mix(in oklab, var(--accent) calc(var(--bloom) * 100%), transparent)); }
+.lm-art .echo { fill: none; stroke: var(--line-2); stroke-width: 1; stroke-linejoin: round; }
+.lm-art .dots { fill: none; stroke: var(--line-2); stroke-width: 1; stroke-dasharray: 1.5 5; }
+.lm-art .pip { fill: var(--line-2); }
+.lm-frame-body { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: calc(var(--m) + .35rem); }
+.lm-frame-body > .lm-shell { flex: 1; min-height: 0; }
+@keyframes lm-pop { from { opacity: 0; transform: scale(.94); } }
+
+/* Header: the orb, the one-line summary and the window buttons. It is the drag handle, dark in both themes, and fades
+   into the window from the top. The plain chrome keeps the header but has no buttons and no dragging. */
+.lm-rail {
+  position: relative; display: flex; align-items: center; gap: .8rem; flex: none; min-height: 3.6rem;
+  padding: calc(var(--m) + .7rem) calc(var(--m) + 1.1rem) 1.15rem calc(var(--m) + 1.5rem);
+  background: linear-gradient(to bottom, var(--head-top), var(--head-mid) 62%, transparent);
+  color: var(--text); user-select: none; touch-action: none; cursor: grab;
+}
+.lm-window[data-dragging] .lm-rail { cursor: grabbing; }
+:root[data-chrome='plain'] .lm-rail { cursor: default; }
+:root[data-chrome='plain'] .lm-wbtn { display: none; }
+.lm-rail .lm-presence { --s: 2.1rem; }
+.lm-status {
+  flex: 1; min-width: 0; margin: 0; font-size: .9375rem; line-height: 1.45; color: var(--text);
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+}
+.lm-status:empty::before { content: '\2014'; color: var(--text-3); }
+/* The buttons carry their own dark plate, so they stay legible over a light desktop. */
+.lm-wbtn { flex: none; align-self: center; cursor: pointer; display: grid; place-items: center; width: 1.45rem; height: 1.45rem; padding: 0; color: var(--text-2); background: var(--panel-solid); border: 1px solid var(--line-2); border-radius: 2px; cursor: pointer; transition: border-color .15s, background .15s, color .15s; }
+.lm-wbtn svg { width: .78rem; height: .78rem; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.lm-wbtn:hover { color: var(--text); border-color: var(--accent); background: color-mix(in oklab, var(--accent) 16%, transparent); }
+.lm-wbtn[data-kind='close']:hover { border-color: var(--err); background: color-mix(in oklab, var(--err) 20%, transparent); }
+
+.lm-window .lm-orb-big { display: none; position: absolute; right: 0; top: 0; width: var(--cap-w); height: var(--cap-h); z-index: 4; pointer-events: none; }
+.lm-cap-hit { display: none; }
+
+/* Fold into the orb at the top-right corner, and unfold from it. The window's own scale and opacity are set from script (see Window). */
+.lm-window[data-motion] { pointer-events: none; }
+.lm-window[data-motion] .lm-view, .lm-window[data-motion] .lm-art { transform-origin: calc(100% - var(--cap-w) / 2) calc(var(--cap-h) / 2); }
+.lm-window[data-motion] .lm-orb-big { display: block; }
+.lm-window[data-motion='to-orb'] .lm-orb-big { animation: lm-orb-in .34s .14s cubic-bezier(.2, .8, .2, 1) both; }
+.lm-window[data-motion='from-orb'] .lm-orb-big { animation: lm-orb-out .24s ease-in both; }
+@keyframes lm-orb-in { from { opacity: 0; transform: scale(.35); } }
+@keyframes lm-orb-out { to { opacity: 0; transform: scale(.35); } }
+
+/* Collapsed: the window becomes the core alone; the canvas paints only the core, with no backing. */
+.lm-window[data-state='collapsed'] .lm-rail, .lm-window[data-state='collapsed'] .lm-frame-body, .lm-window[data-state='collapsed'] .lm-modal, .lm-window[data-state='collapsed'] .lm-art, .lm-window[data-state='collapsed'] .lm-view { display: none; }
+.lm-window[data-state='collapsed'] .lm-orb-big { display: block; width: 100%; height: 100%; }
+.lm-window[data-state='collapsed'] .lm-cap-hit { display: block; position: absolute; inset: 8px; z-index: 6; padding: 0; border: 0; border-radius: 38%; background: transparent; cursor: grab; touch-action: none; }
+.lm-window[data-dragging] .lm-cap-hit { cursor: grabbing; }
+/* Grips: a band along each edge, and over each cut corner a triangle that reaches a little inside the rim. */
+.lm-grips > i { position: absolute; z-index: 8; }
+.lm-grips > [data-edge='n'], .lm-grips > [data-edge='s'] { inset-inline: 1rem; height: 6px; cursor: ns-resize; }
+.lm-grips > [data-edge='e'], .lm-grips > [data-edge='w'] { inset-block: 1rem; width: 6px; cursor: ew-resize; }
+.lm-grips > [data-edge='n'] { top: 0; }
+.lm-grips > [data-edge='s'] { bottom: 0; }
+.lm-grips > [data-edge='e'] { right: 0; }
+.lm-grips > [data-edge='w'] { left: 0; }
+.lm-grips > [data-edge='nw'] { top: 0; left: 0; width: calc(1.6rem + 10px); height: calc(1.6rem + 10px); clip-path: polygon(0 0, 100% 0, 0 100%); cursor: nwse-resize; }
+.lm-grips > [data-edge='ne'] { top: 0; right: 0; width: calc(.7rem + 14px); height: calc(.7rem + 14px); clip-path: polygon(0 0, 100% 0, 100% 100%); cursor: nesw-resize; }
+.lm-grips > [data-edge='se'] { bottom: 0; right: 0; width: calc(2.2rem + 10px); height: calc(2.2rem + 10px); clip-path: polygon(100% 0, 100% 100%, 0 100%); cursor: nwse-resize; }
+.lm-grips > [data-edge='sw'] { bottom: 0; left: 0; width: calc(.7rem + 14px); height: calc(.7rem + 14px); clip-path: polygon(0 0, 100% 100%, 0 100%); cursor: nesw-resize; }
+.lm-window[data-state='collapsed'] .lm-grips, :root[data-chrome='plain'] .lm-grips { display: none; }
+
+/* Confirm dialog: a hazard-marked module inside the window, clipped by its outline. */
+.lm-modal { position: absolute; inset: 0; z-index: 7; display: grid; place-items: center; padding: 1.25rem; background: radial-gradient(ellipse at center, oklch(0 0 0 / .3), oklch(0 0 0 / .6)); backdrop-filter: blur(9px) saturate(1.2); -webkit-backdrop-filter: blur(9px) saturate(1.2); animation: lm-fade .2s ease-out both; }
+.lm-modal[hidden] { display: none; }
+.lm-dialog {
+  --cut: 1.1rem; --cut2: .8rem; --edge: color-mix(in oklab, var(--err) 42%, var(--line-2));
+  position: relative; container: dlg / inline-size; width: min(27rem, 100%);
+  background: linear-gradient(165deg, oklch(.27 calc(.07 * var(--k)) var(--hue) / .9), oklch(.17 calc(.05 * var(--k)) var(--hue) / .94));
+  border: 1px solid var(--edge);
+  clip-path: polygon(var(--cut2) 0, 100% 0, 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, 0 100%, 0 var(--cut2));
+  animation: lm-rise .28s cubic-bezier(.2, .8, .2, 1) both;
+}
+.lm-dialog::before, .lm-dialog::after { content: ''; position: absolute; pointer-events: none; }
+.lm-dialog::before { left: -1px; top: -1px; width: var(--cut2); height: var(--cut2); background: linear-gradient(to bottom right, transparent calc(50% + .2px), var(--edge) calc(50% + .2px), var(--edge) calc(50% + 1.2px), transparent calc(50% + 1.2px)); }
+.lm-dialog::after { right: -1px; bottom: -1px; width: var(--cut); height: var(--cut); background: linear-gradient(to bottom right, transparent calc(50% - 1.2px), var(--edge) calc(50% - 1.2px), var(--edge) calc(50% - .2px), transparent calc(50% - .2px)); }
+.lm-dialog .tape { position: absolute; left: var(--cut2); right: 0; top: 0; height: 3px; opacity: .75; background: repeating-linear-gradient(135deg, var(--err) 0 5px, transparent 5px 10px); }
+.lm-dialog .in { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 1.1rem 1.2rem; padding: 1.6rem 1.4rem 1.2rem; }
+.lm-dlg-icon { width: 3.3rem; height: 3.3rem; color: var(--err); overflow: visible; }
+.lm-dlg-icon .ring { fill: none; stroke: currentColor; transform-origin: 24px 24px; }
+.lm-dlg-icon .a { stroke-width: 1.5; stroke-dasharray: 20 8 4 8; animation: lm-spin 18s linear infinite; }
+.lm-dlg-icon .b { stroke-width: 1; stroke-dasharray: 1.5 4.5; opacity: .55; animation: lm-spin 24s linear infinite reverse; }
+.lm-dlg-icon .glyph { fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 60; animation: lm-draw .7s .12s ease-out both; filter: drop-shadow(0 0 5px color-mix(in oklab, var(--err) calc(var(--bloom) * 100%), transparent)); }
+.lm-dialog h3 { margin: 0; font-size: 1.15rem; font-weight: 600; }
+.lm-dialog p { margin: .35rem 0 0; color: var(--text-2); line-height: 1.6; overflow-wrap: anywhere; }
+.lm-dialog .actions { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: .7rem; margin-top: .1rem; padding-top: 1rem; border-top: 1px solid var(--line); }
+@container dlg (max-width: 21rem) { .lm-dialog .in { grid-template-columns: 1fr; } .lm-dialog .actions .lm-btn { flex: 1; } }
+@keyframes lm-fade { from { opacity: 0; } }
+@keyframes lm-rise { from { opacity: 0; transform: translateY(.6rem) scale(.98); } }
+@keyframes lm-draw { from { stroke-dashoffset: 60; } }
+@keyframes lm-spin { to { transform: rotate(360deg); } }
+
+/* While the confirm is open the window rim warms toward the alert colour. */
+.lm-art .rim { transition: stroke .3s; }
+.lm-window[data-confirm] .lm-art .rim { stroke: color-mix(in oklab, var(--err) 68%, var(--frame-line)); }
+
+/* ---------- Shell ---------- */
+.lm-shell { container: shell / inline-size; display: flex; flex-direction: column; height: 100%; min-width: 0; }
+.lm-workspace { flex: 1; min-height: 0; overflow: auto; container: ws / inline-size; padding: 1rem; scrollbar-gutter: stable; }
+/* The shell places every panel itself (see Shell in ui.js); moves glide, and a panel that leaves fades in the ghost layer. */
+.lm-stage { position: relative; }
+.lm-grid { position: relative; gap: 1rem; }
+.lm-stage .lm-grid > *, .lm-stage .lm-ghosts > * { position: absolute; left: 0; top: 0; }
+.lm-stage .lm-grid > * { transition: transform .55s cubic-bezier(.2, .8, .2, 1); }
+.lm-shell[data-flow='vertical'] .lm-grid > .lm-panel { min-height: calc((var(--rows, 1) - 1) * 9rem); }
+.lm-ghosts { position: absolute; inset: 0; pointer-events: none; }
+.lm-ghosts > .lm-leaving { animation: lm-off .45s ease-in forwards; }
+@keyframes lm-off { to { opacity: 0; scale: .97; filter: brightness(1.7); } }
+@container shell (max-width: 34rem) { .lm-workspace { padding: .75rem; } .lm-grid { gap: .75rem; } }
+
+/* ---------- Panel: a hairline plane with one chamfered corner ---------- */
+.lm-panel {
+  --cut: 1.1rem;
+  position: relative; display: flex; flex-direction: column; min-width: 0;
+  container: panel / inline-size;
+  background: linear-gradient(165deg, var(--panel-a), var(--panel-b));
+  border: 1px solid var(--edge, var(--line));
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, 0 100%);
+  animation: lm-on .5s ease-out both; animation-delay: calc(var(--i, 0) * 70ms);
+}
+/* The glass catches light along its top-left edges, with a small bracket at the far corner. */
+.lm-sheen {
+  position: absolute; inset: 0; z-index: 2; pointer-events: none;
+  background:
+    linear-gradient(90deg, var(--lit), transparent 45%) 0 0 / 100% 1px no-repeat,
+    linear-gradient(180deg, var(--lit), transparent 40%) 0 0 / 1px 100% no-repeat,
+    linear-gradient(var(--lit), var(--lit)) 100% 0 / .6rem 1px no-repeat,
+    linear-gradient(var(--lit), var(--lit)) 100% 0 / 1px .6rem no-repeat;
+}
+/* When the agent edits what a panel shows, its edge glows for a moment, so the eye finds what changed. */
+.lm-panel[data-touch] .lm-sheen { animation: lm-touch 1.4s ease-out; }
+.lm-panel::after {
+  content: ''; position: absolute; right: -1px; bottom: -1px; width: var(--cut); height: var(--cut); pointer-events: none;
+  background: linear-gradient(to bottom right, transparent calc(50% - 1.2px), var(--edge, var(--line-2)) calc(50% - 1.2px), var(--edge, var(--line-2)) calc(50% - .2px), transparent calc(50% - .2px));
+}
+.lm-panel::before {
+  content: ''; position: absolute; inset: 0; z-index: 0; pointer-events: none; opacity: .5;
+  background: linear-gradient(var(--grid) 1px, transparent 1px) 0 0 / 1.5rem 1.5rem, linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0 / 1.5rem 1.5rem;
+  mask-image: radial-gradient(120% 100% at 100% 0%, #000, transparent 72%); -webkit-mask-image: radial-gradient(120% 100% at 100% 0%, #000, transparent 72%);
+}
+.lm-head { position: relative; z-index: 1; display: flex; align-items: baseline; gap: .75rem; padding: .8rem 1.125rem .7rem; flex: none; background: linear-gradient(90deg, var(--head-band), transparent 75%); }
+.lm-head h2 { margin: 0; min-width: 0; font-size: .9375rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lm-head .meta { flex: 0 1 auto; min-width: 0; max-width: 55%; margin-left: auto; font: 300 .75rem var(--num); color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lm-head::after { content: ''; position: absolute; inset: auto 0 0; height: 1px; background: var(--line); }
+.lm-body { position: relative; z-index: 1; flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 1rem; padding: 1rem 1.125rem 1.25rem; overflow: auto; }
+.lm-panel[data-scroll] { max-height: var(--max-h, 30rem); }
+@keyframes lm-on { from { opacity: 0; scale: .98; filter: brightness(1.8); } }
+@keyframes lm-touch { from { box-shadow: inset 0 0 0 1px var(--lit), inset 0 0 1.6rem -.5rem var(--lit-glow); } }
+@container panel (max-width: 20rem) { .lm-body { padding: .875rem .875rem 1.125rem; } .lm-head { padding-inline: .875rem; } }
+
+/* ---------- Every element the renderer places: never wider than its container, whatever its props or content ---------- */
+.lm-el { max-width: 100%; min-width: 0; }
+
+/* ---------- Layout primitives ---------- */
+.lm-stack { display: flex; flex-direction: column; gap: var(--gap, 1rem); min-width: 0; }
+.lm-row { display: flex; flex-wrap: wrap; align-items: var(--align, center); gap: var(--gap, .75rem); min-width: 0; }
+.lm-cgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--min, 9rem)), 1fr)); gap: var(--gap, 1rem); min-width: 0; }
+.lm-grow { flex: 1 1 auto; min-height: 0; }
+
+/* Across: a wide, low window fills each column top to bottom and scrolls sideways. */
+.lm-shell[data-flow='horizontal'] .lm-workspace { overflow: auto hidden; }
+
+/* ---------- Text ---------- */
+.lm-heading { container: heading / inline-size; display: flex; flex-direction: column; gap: .4rem; }
+.lm-heading h1 { margin: 0; font-weight: 600; font-size: clamp(1.4rem, 5.5cqi, 2.4rem); line-height: 1.18; letter-spacing: -.01em; overflow-wrap: anywhere; text-wrap: balance; }
+.lm-heading p { margin: 0; color: var(--text-2); max-width: 62ch; overflow-wrap: anywhere; }
+.lm-text { margin: 0; max-width: 70ch; color: var(--text-2); line-height: 1.7; overflow-wrap: anywhere; }
+.lm-text[data-size='lg'] { font-size: 1.125rem; color: var(--text); }
+.lm-text[data-size='sm'] { font-size: .875rem; color: var(--text-3); }
+.lm-label { font-size: .8125rem; font-weight: 500; color: var(--text-3); }
+
+.lm-badge {
+  display: inline-flex; align-items: center; gap: .4rem; max-width: 100%;
+  padding: .12rem .55rem .12rem .45rem; border-radius: 2px; font-size: .75rem; font-weight: 500; line-height: 1.5; white-space: nowrap;
+  color: var(--text); border: 1px solid color-mix(in oklab, var(--tone, var(--text-3)) 40%, transparent);
+  background: color-mix(in oklab, var(--tone, var(--text-3)) 13%, transparent);
+}
+.lm-badge > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.lm-badge svg, .lm-ln svg { width: .7rem; height: .7rem; flex: none; color: var(--tone, var(--text-3)); fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+
+.lm-callout { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: .15rem .75rem; padding: .85rem 1rem; border-left: 2px solid var(--tone, var(--accent)); border-radius: 0 2px 2px 0; background: color-mix(in oklab, var(--tone, var(--accent)) 9%, transparent); }
+.lm-callout svg { width: 1rem; height: 1rem; margin-top: .22rem; color: var(--tone, var(--accent)); fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+.lm-callout b { font-weight: 600; }
+.lm-callout p { grid-column: 2; margin: 0; color: var(--text-2); overflow-wrap: anywhere; }
+
+.lm-divider { display: flex; align-items: center; gap: .75rem; color: var(--text-3); font-size: .8125rem; }
+.lm-divider::before, .lm-divider::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+.lm-divider:empty::before { display: none; }
+
+.lm-btn {
+  --cut: .55rem; position: relative; display: inline-flex; align-items: center; justify-content: center; gap: .6rem; min-height: 2.25rem; max-width: 100%; padding: .35rem 1.1rem; text-align: center; line-height: 1.35;
+  font: 500 .875rem var(--font); color: var(--text); background: transparent; border: 1px solid var(--line-2); border-radius: 0; cursor: pointer;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, 0 100%);
+  transition: border-color .15s, background .15s, color .15s;
+}
+.lm-btn::after { content: ''; position: absolute; right: -1px; bottom: -1px; width: var(--cut); height: var(--cut); pointer-events: none; background: linear-gradient(to bottom right, transparent calc(50% - 1.2px), var(--line-2) calc(50% - 1.2px), var(--line-2) calc(50% - .2px), transparent calc(50% - .2px)); }
+.lm-btn:hover { border-color: var(--accent); background: color-mix(in oklab, var(--accent) 14%, transparent); }
+.lm-btn:hover::after { background: linear-gradient(to bottom right, transparent calc(50% - 1.2px), var(--accent) calc(50% - 1.2px), var(--accent) calc(50% - .2px), transparent calc(50% - .2px)); }
+.lm-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: -5px; }
+.lm-btn kbd { font: 300 .7rem var(--num); padding: .05rem .38rem; color: var(--text-3); border: 1px solid var(--line-2); border-radius: 2px; }
+.lm-btn[data-kind='primary'] { background: var(--accent); color: var(--accent-ink); border-color: transparent; }
+.lm-btn[data-kind='primary']:hover { background: color-mix(in oklab, var(--accent) 86%, white); }
+.lm-btn[data-kind='danger'] { color: #fff; border-color: transparent; background: linear-gradient(160deg, color-mix(in oklab, var(--err) 92%, white), var(--err)); box-shadow: 0 0 1.2rem -.3rem color-mix(in oklab, var(--err) calc(var(--bloom) * 100%), transparent); }
+.lm-btn[data-kind='danger']:hover { background: linear-gradient(160deg, color-mix(in oklab, var(--err) 80%, white), color-mix(in oklab, var(--err) 90%, white)); }
+.lm-btn[data-kind='primary']::after, .lm-btn[data-kind='danger']::after { display: none; }
+
+/* ---------- Agent presence: a canvas core (see Presence in ui.js) ---------- */
+.lm-presence { --s: 2.25rem; display: block; width: var(--s); height: auto; aspect-ratio: 1; flex: none; }
+
+.lm-msg { display: flex; padding-left: .9rem; border-left: 2px solid var(--tone, var(--accent)); }
+.lm-msg p { margin: 0; min-width: 0; flex: 1; font-size: 1.0625rem; line-height: 1.65; overflow-wrap: anywhere; }
+.lm-caret { display: inline-block; width: .5ch; height: 1.05em; margin-left: 2px; vertical-align: -.15em; background: var(--accent); animation: lm-blink 1.1s steps(1) infinite; }
+@keyframes lm-blink { 50% { opacity: 0; } }
+
+/* ---------- Metric ---------- */
+.lm-metric { container: metric / inline-size; display: flex; flex-direction: column; gap: .3rem; min-width: 0; }
+.lm-metric .line { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: .4rem .9rem; }
+.lm-metric .val { font: 300 clamp(1.6rem, 15cqi, 3.2rem)/1.05 var(--num); letter-spacing: -.03em; white-space: nowrap; font-variant-numeric: tabular-nums; text-shadow: var(--num-glow); }
+.lm-metric .val small { font-size: .38em; letter-spacing: 0; margin-left: .35em; color: var(--text-3); }
+.lm-metric .val.wrap { white-space: normal; overflow-wrap: anywhere; font: 300 1.25rem/1.3 var(--font); letter-spacing: 0; }
+.lm-metric .sub { display: flex; flex-wrap: wrap; gap: 0 .6rem; font-size: .8125rem; color: var(--text-3); }
+.lm-metric .delta { font-family: var(--num); font-weight: 300; color: var(--tone, var(--text-2)); }
+.lm-spark { flex: 1 1 3.5rem; min-width: 3rem; max-width: 8rem; height: 1.7rem; }
+.lm-spark path { fill: none; stroke: var(--tone, var(--accent)); stroke-width: 1.4; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
+.lm-spark .fill { fill: color-mix(in oklab, var(--tone, var(--accent)) 16%, transparent); stroke: none; }
+
+/* ---------- Gauge: discrete blocks ---------- */
+.lm-gauge { container: gauge / inline-size; position: relative; width: min(100%, 11rem); margin-inline: auto; aspect-ratio: 1; }
+.lm-gauge svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.lm-gauge .inner { fill: none; stroke: var(--line); stroke-width: .8; }
+.lm-gauge .blk { fill: none; stroke: var(--grid); stroke-width: 6; transition: stroke .25s, opacity .25s; }
+.lm-gauge .blk.on { stroke: var(--tone, var(--accent)); filter: drop-shadow(0 0 3px color-mix(in oklab, var(--tone, var(--accent)) calc(var(--bloom) * 100%), transparent)); }
+.lm-gauge .read { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: .1em; padding-bottom: 4%; }
+.lm-gauge .read b { font: 300 clamp(.75rem, min(22cqi, 66cqi / var(--n, 3)), 2.4rem)/1 var(--num); letter-spacing: -.03em; text-shadow: var(--num-glow); }
+.lm-gauge .read b small { font-size: .42em; color: var(--text-3); margin-left: .2em; letter-spacing: 0; }
+.lm-gauge .read span { font-size: clamp(.7rem, 8cqi, .875rem); color: var(--text-3); max-width: 70%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---------- Progress / BarList ---------- */
+.lm-progress { display: flex; flex-direction: column; gap: .45rem; }
+.lm-progress .top { display: flex; justify-content: space-between; gap: 1rem; font-size: .875rem; }
+.lm-progress .top span:last-child { font: 300 .8125rem var(--num); color: var(--text-2); }
+.lm-blocks { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 2px; height: .6rem; }
+.lm-blocks i { background: var(--grid); transition: background .25s, box-shadow .25s; }
+.lm-blocks i.on { background: var(--tone, var(--accent)); box-shadow: 0 0 .5rem -.1rem color-mix(in oklab, var(--tone, var(--accent)) calc(var(--bloom) * 100%), transparent); }
+.lm-track { position: relative; height: .45rem; background: repeating-linear-gradient(90deg, var(--grid) 0 1px, transparent 1px 10%), color-mix(in oklab, var(--line) 70%, transparent); }
+.lm-track i { position: absolute; inset: 0 auto 0 0; width: var(--p, 0%); background: var(--tone, var(--accent)); box-shadow: 0 0 .6rem -.1rem color-mix(in oklab, var(--tone, var(--accent)) calc(var(--bloom) * 100%), transparent); transition: width .7s cubic-bezier(.2, .7, .2, 1); }
+.lm-bars { container: bars / inline-size; display: flex; flex-direction: column; gap: .8rem; }
+.lm-brow { display: grid; grid-template-columns: minmax(4rem, 10rem) minmax(0, 1fr) auto; gap: .25rem .8rem; align-items: center; }
+.lm-brow .l { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-2); font-size: .875rem; }
+.lm-brow .v { min-width: 0; font: 300 .8125rem var(--num); color: var(--text-2); text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@container bars (max-width: 20rem) { .lm-brow { grid-template-columns: minmax(0, 1fr) auto; } .lm-brow .lm-track { grid-column: 1 / -1; grid-row: 2; } }
+
+/* ---------- Donut / Tiles ---------- */
+.lm-donut { container: donut / inline-size; display: flex; flex-wrap: wrap; align-items: center; gap: 1rem 1.4rem; }
+.lm-donut .ring { position: relative; flex: 0 0 8.5rem; width: 8.5rem; max-width: 100%; aspect-ratio: 1; margin-inline: auto; }
+.lm-donut-svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.lm-donut-svg .inner { fill: none; stroke: var(--line); stroke-width: .8; }
+.lm-donut-svg .seg { fill: none; stroke: var(--tone); stroke-width: 14; transform: rotate(-90deg); transform-origin: 60px 60px; filter: drop-shadow(0 0 3px color-mix(in oklab, var(--tone) calc(var(--bloom) * 100%), transparent)); }
+.lm-donut .c { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.lm-donut .c b { font: 300 1.6rem/1 var(--num); letter-spacing: -.03em; text-shadow: var(--num-glow); }
+.lm-donut .c span { font-size: .75rem; color: var(--text-3); }
+.lm-donut .lg { flex: 1 1 8rem; min-width: 0; margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: .5rem; }
+.lm-donut .lg li { display: grid; grid-template-columns: .6rem minmax(0, 1fr) auto; gap: .6rem; align-items: center; font-size: .875rem; }
+.lm-donut .lg i { width: .6rem; height: .6rem; background: var(--tone); }
+.lm-donut .lg span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-2); }
+.lm-donut .lg b { font: 300 .8125rem var(--num); color: var(--text); }
+.lm-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--min, 3.4rem)), 1fr)); gap: .4rem; }
+.lm-tiles .tile { position: relative; aspect-ratio: 1; display: grid; place-items: center; min-width: 0; overflow: hidden; padding: .2rem; border: 1px solid color-mix(in oklab, var(--tone) 50%, transparent); background: linear-gradient(160deg, color-mix(in oklab, var(--tone) 28%, transparent), color-mix(in oklab, var(--tone) 8%, transparent)); transition: border-color .2s, background .2s; }
+.lm-tiles .tile:hover { border-color: var(--tone); background: linear-gradient(160deg, color-mix(in oklab, var(--tone) 40%, transparent), color-mix(in oklab, var(--tone) 14%, transparent)); }
+.lm-tiles .tile b { font: 400 .875rem var(--num); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lm-tiles .tile small { position: absolute; left: .3rem; top: .2rem; font: 300 .62rem var(--num); color: var(--text-3); }
+
+/* ---------- Chart ---------- */
+.lm-chart { flex: 1 1 14rem; min-height: 11rem; max-height: 28rem; display: flex; flex-direction: column; gap: .6rem; }
+.lm-legend { display: flex; flex-wrap: wrap; gap: .25rem 1.1rem; align-items: baseline; min-height: 1.25rem; font-size: .8125rem; color: var(--text-2); }
+.lm-legend .key { display: inline-flex; align-items: baseline; gap: .45rem; }
+.lm-legend .key i { align-self: center; width: .7rem; height: 2px; background: var(--tone); }
+.lm-legend .key[data-bar] i { height: .6rem; width: .6rem; }
+.lm-legend .key b { font: 300 .8125rem var(--num); color: var(--text); }
+.lm-legend .at { margin-left: auto; font: 300 .75rem var(--num); color: var(--text-3); }
+.lm-plot { position: relative; flex: 1 1 0; min-height: 8rem; }
+.lm-plot svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; touch-action: pan-y; }
+.lm-plot text { font: 300 .72rem var(--num); fill: var(--text-3); }
+.lm-plot .gl { stroke: var(--grid); }
+.lm-plot .bl { stroke: var(--line-2); }
+.lm-plot .rt { stroke: var(--line-2); }
+.lm-plot .ln { fill: none; stroke: var(--tone); stroke-width: 1.6; stroke-linejoin: round; stroke-linecap: round; filter: drop-shadow(0 0 3px color-mix(in oklab, var(--tone) calc(var(--bloom) * 100%), transparent)); }
+.lm-plot .bar { fill: var(--tone); }
+.lm-plot .dot { fill: var(--tone); stroke: var(--panel-solid); stroke-width: 2; }
+.lm-plot .pulse { fill: none; stroke: var(--tone); transform-box: fill-box; transform-origin: center; animation: lm-ping 7s ease-out infinite; }
+.lm-plot .xh { stroke: var(--line-2); stroke-dasharray: 2 3; }
+@keyframes lm-ping { from { transform: scale(1); opacity: .9; } to { transform: scale(3.2); opacity: 0; } }
+
+/* ---------- Table / KeyValue / Code ---------- */
+.lm-table { container: tbl / inline-size; flex: 0 1 auto; overflow: auto; max-height: 28rem; }
+.lm-table table { width: 100%; border-collapse: collapse; font-size: .875rem; }
+.lm-table th { position: sticky; top: 0; z-index: 1; padding: .5rem .9rem .5rem 0; text-align: left; font-size: .8125rem; font-weight: 500; color: var(--text-3); white-space: nowrap; background: var(--panel-solid); border-bottom: 1px solid var(--line-2); }
+.lm-table td { padding: .6rem .9rem .6rem 0; vertical-align: top; overflow-wrap: anywhere; border-bottom: 1px solid var(--line); }
+.lm-table tr:hover td { background: color-mix(in oklab, var(--accent) 6%, transparent); }
+.lm-table .num { text-align: right; font: 300 .8125rem var(--num); white-space: nowrap; }
+.lm-table th.num { font-family: var(--font); font-weight: 500; font-size: .8125rem; }
+.lm-table .more { padding: .6rem 0 0; color: var(--text-3); font-size: .8125rem; }
+@container tbl (max-width: 30rem) {
+  .lm-table thead { display: none; }
+  .lm-table tr { display: block; padding: .55rem 0; border-bottom: 1px solid var(--line); }
+  .lm-table td { display: flex; justify-content: space-between; gap: 1rem; padding: .15rem 0; border: 0; text-align: right; }
+  .lm-table td::before { content: attr(data-k); flex: none; color: var(--text-3); text-align: left; }
+  .lm-table tr:hover td { background: none; }
+}
+.lm-kv { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr)); gap: .9rem 1.5rem; margin: 0; }
+.lm-kv div { min-width: 0; padding-top: .5rem; border-top: 1px solid var(--line); }
+.lm-kv dt { font-size: .8125rem; color: var(--text-3); }
+.lm-kv dd { margin: .15rem 0 0; overflow-wrap: anywhere; }
+.lm-kv dd[data-mono] { font: 300 .8125rem/1.55 var(--num); }
+.lm-code { margin: 0; padding: .85rem 1rem; max-height: 22rem; overflow: auto; font: 300 .8125rem/1.65 var(--num); tab-size: 2; color: var(--text); background: color-mix(in oklab, var(--bg) 55%, transparent); border: 1px solid var(--line); border-radius: 2px; }
+
+/* ---------- Steps ---------- */
+.lm-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.lm-step { position: relative; display: grid; grid-template-columns: 1.3rem minmax(0, 1fr) fit-content(40%); gap: .1rem .7rem; padding-bottom: 1rem; }
+.lm-step:last-child { padding-bottom: 0; }
+.lm-step::before { content: ''; position: absolute; left: .64rem; top: 1.35rem; bottom: .2rem; width: 1px; background: var(--line-2); }
+.lm-step:last-child::before { display: none; }
+.lm-step[data-s='done']::before { background: color-mix(in oklab, var(--accent) 55%, transparent); }
+.lm-step .n { position: relative; width: .95rem; height: .95rem; margin: .22rem 0 0 .17rem; border-radius: 50%; border: 1px solid var(--text-3); background: var(--panel-solid); }
+.lm-step[data-s='done'] .n { border-color: var(--accent); }
+.lm-step[data-s='done'] .n::after { content: ''; position: absolute; left: 31%; top: 14%; width: 26%; height: 50%; border: solid var(--accent); border-width: 0 1.5px 1.5px 0; transform: rotate(40deg); }
+.lm-step[data-s='active'] .n { border-color: var(--accent); box-shadow: 0 0 0 .22rem color-mix(in oklab, var(--accent) 20%, transparent), 0 0 .9rem color-mix(in oklab, var(--accent) calc(var(--bloom) * 100%), transparent); }
+.lm-step[data-s='active'] .n::after { content: ''; position: absolute; inset: 25%; border-radius: 50%; background: var(--accent); animation: lm-blink 4.8s ease-in-out infinite; }
+.lm-step[data-s='err'] .n { border-color: var(--err); }
+.lm-step[data-s='err'] .n::after { content: '×'; position: absolute; inset: 0; display: grid; place-items: center; color: var(--err); font-size: .8rem; line-height: 1; }
+.lm-step .t { font-weight: 500; overflow-wrap: anywhere; }
+.lm-step[data-s='pending'] .t { color: var(--text-3); font-weight: 400; }
+.lm-step .d { grid-column: 2; color: var(--text-3); font-size: .875rem; overflow-wrap: anywhere; }
+.lm-step .m { grid-column: 3; grid-row: 1; min-width: 0; font: 300 .75rem var(--num); color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-top: .2rem; }
+@container panel (max-width: 19rem) { .lm-step { grid-template-columns: 1.3rem minmax(0, 1fr); } .lm-step .m { grid-column: 2; grid-row: auto; padding: 0; } }
+
+/* ---------- Log ---------- */
+.lm-log { flex: 1 1 12rem; min-height: 9rem; max-height: 32rem; overflow: auto; container: log / inline-size; font: 300 .8125rem/1.55 var(--num); }
+.lm-ln { display: grid; grid-template-columns: auto .75rem minmax(0, 1fr); gap: 0 .6rem; padding: .1rem 0; animation: lm-slide .35s ease-out both; }
+.lm-ln time { color: var(--text-3); }
+.lm-ln span { overflow-wrap: anywhere; color: var(--text-2); }
+.lm-ln[data-lv='warn'] span, .lm-ln[data-lv='err'] span { color: var(--text); }
+.lm-ln svg { margin-top: .3em; }
+@keyframes lm-slide { from { opacity: 0; transform: translateX(-.4rem); } }
+@container log (max-width: 22rem) { .lm-ln { grid-template-columns: .75rem minmax(0, 1fr); } .lm-ln time { display: none; } }
+
+/* ---------- Topology: a fixed layout that scales to fit, so the diagram never reflows ---------- */
+.lm-topo { position: relative; flex: 1 0 auto; min-width: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.lm-topo-in { position: relative; flex: none; width: max-content; display: flex; flex-direction: column; gap: 2.4rem; transform-origin: center; }
+.lm-tier { position: relative; z-index: 1; display: flex; justify-content: center; gap: 1rem; }
+.lm-tn { flex: none; width: 9.5rem; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0 .5rem; align-items: center; padding: .5rem .7rem; background: var(--panel-solid); border: 1px solid var(--line-2); border-radius: 2px; transition: border-color .4s, box-shadow .4s; }
+.lm-tn svg { width: .7rem; height: .7rem; color: var(--tone, var(--ok)); fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+.lm-tn b { font-weight: 500; font-size: .875rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lm-tn small { grid-column: 2; font: 300 .72rem var(--num); color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lm-tn[data-active] { border-color: var(--accent); box-shadow: 0 0 1rem -.25rem color-mix(in oklab, var(--accent) calc(var(--bloom) * 100%), transparent); }
+.lm-topo-in > svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+.lm-topo .e { fill: none; stroke: var(--line-2); stroke-width: 1; }
+.lm-topo .e.live { stroke: var(--accent); stroke-dasharray: 2 7; animation: lm-dash 6s linear infinite; }
+@keyframes lm-dash { to { stroke-dashoffset: -9; } }
+
+/* ---------- Polar ---------- */
+.lm-polar { position: relative; width: min(100%, 24rem); aspect-ratio: 1; margin-inline: auto; }
+.lm-polar svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.lm-polar text { font: 400 .78rem var(--font); fill: var(--text-2); }
+.lm-polar .ring, .lm-polar .spoke { fill: none; stroke: var(--grid); }
+.lm-polar .ring:last-of-type { stroke: var(--line-2); }
+.lm-polar .area { fill: color-mix(in oklab, var(--tone, var(--accent)) 20%, transparent); stroke: var(--tone, var(--accent)); stroke-width: 1.5; stroke-linejoin: round; filter: drop-shadow(0 0 4px color-mix(in oklab, var(--tone, var(--accent)) calc(var(--bloom) * 100%), transparent)); }
+.lm-polar .ref { fill: none; stroke: var(--text-3); stroke-width: 1; stroke-dasharray: 3 3; }
+.lm-polar .pt { fill: var(--tone, var(--accent)); stroke: var(--panel-solid); stroke-width: 2; }
+
+/* ---------- Host chrome ---------- */
+.lm-toast { --cut: .6rem; position: fixed; left: 50%; bottom: 1.5rem; transform: translateX(-50%); padding: .6rem 1.1rem; font-size: .875rem; background: var(--panel-solid); border: 1px solid var(--accent); clip-path: polygon(0 0, 100% 0, 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, 0 100%); animation: lm-slide .3s ease-out both; z-index: 10; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}
