@@ -26,6 +26,7 @@ GOOD TO KNOW
 - The user reads Chinese: write visible text in Chinese, but keep code, paths and identifiers as they are. Never show secrets.
 - Say only what NOTES, SCREEN or EVENTS support.
 - Panels are laid out in columns of about 14rem, as many as the window fits; span widens a panel. Columns are narrow, so keep text short: a few words per item rather than sentences, no description the content does not need. Let the layout and the components carry the meaning (status, numbers, progress, lists) instead of explaining in prose.
+- The screen is about now. Take off what is finished or no longer useful rather than leaving it up: a finished task keeps at most its key result, in a line, without the steps that led there. SCREEN says when each panel was last updated; Lumen removes any panel nothing has updated for an hour.
 - A panel that gathers one kind of thing from every session (what waits for the user, what is running, what came out) usually serves better than a panel per session.
 - The send action gives its text to an agent as if the user had typed it: {"action":"send","params":{"text":"…","to":"<tag>"}}. It reaches the agent at its next tool call, so only an agent that is working can take it: when a session goes idle, Lumen removes what would send to it. A permission prompt can only be answered in the agent's own terminal.
 - NOTES hold at most 2000 characters. Date each item with the time an event last confirmed it, e.g. [14:05], and drop items nothing has confirmed for three hours.`
@@ -35,7 +36,7 @@ export const systemPrompt = (): string => catalog.prompt({ system: INSTRUCTIONS 
 const clipText = (s: string, n: number): string => (s.length > n ? `${s.slice(0, n)}…` : s)
 
 /** The current screen for the model: element per line, long values abbreviated so it stays small. */
-export const screenForPrompt = (spec: Spec, budget = 14_000): string => {
+export const screenForPrompt = (spec: Spec, budget = 14_000, ages: Record<string, number> = {}): string => {
   const brief = (v: unknown, depth = 0): unknown => {
     if (typeof v === 'string') return clipText(v, 140)
     if (Array.isArray(v)) return depth > 3 ? [] : v.length > 8 ? [...v.slice(0, 8).map((x) => brief(x, depth + 1)), `…共 ${v.length} 项`] : v.map((x) => brief(x, depth + 1))
@@ -45,7 +46,7 @@ export const screenForPrompt = (spec: Spec, budget = 14_000): string => {
   const kids = spec.elements.shell?.children ?? []
   const lines = Object.entries(spec.elements)
     .filter(([id]) => id !== 'window' && id !== 'shell')
-    .map(([id, el]) => `${id}: ${JSON.stringify({ type: el.type, props: brief(el.props), children: el.children, ...(el.on ? { on: el.on } : {}), ...(el.visible !== undefined ? { visible: el.visible } : {}) })}`)
+    .map(([id, el]) => `${id}${id in ages ? ` (updated ${ago(ages[id])})` : ''}: ${JSON.stringify({ type: el.type, props: brief(el.props), children: el.children, ...(el.on ? { on: el.on } : {}), ...(el.visible !== undefined ? { visible: el.visible } : {}) })}`)
   const state = Object.entries(spec.state).filter(([k]) => k !== 'presence')
   let text = `shell children: ${JSON.stringify(kids)}\n${lines.join('\n') || '(no elements yet)'}`
   if (state.length) text += `\nstate: ${clipText(JSON.stringify(Object.fromEntries(state)), 1200)}`
@@ -66,6 +67,8 @@ export interface Briefing {
   events: LedgerEntry[]
   actions: PendingAction[]
   sessions: SessionBrief[]
+  /** How long ago each top-level panel was last updated (ms). */
+  ages: Record<string, number>
   rejected: string[]
   first: boolean
 }
@@ -80,7 +83,7 @@ export const userPrompt = (b: Briefing, config: Config): string => {
     `NOW: ${new Date().toLocaleString('zh-CN', { hour12: false })}`,
     `SESSIONS:\n${b.sessions.map((s) => `- ${s.folder}#${s.key}${s.title ? ` "${s.title}"` : ''}: ${s.state}, last event ${ago(s.idleMs)}`).join('\n') || '(none yet)'}`,
     `NOTES:\n${b.notes || (b.first ? '(none yet: this is your first look)' : '(empty)')}`,
-    `SCREEN:\n${screenForPrompt(b.spec)}`,
+    `SCREEN:\n${screenForPrompt(b.spec, undefined, b.ages)}`,
     `EVENTS (${b.events.length} new):\n${b.events.map((e) => renderEntry(e, config, where(e.session))).join('\n') || '(none)'}`,
     b.actions.length ? `ACTIONS:\n${b.actions.map((a) => `- ${hms(a.ts)} ${where(a.session)} 「${a.label}」→ "${a.text}" (${a.delivered ? '已送达智能体' : '等待智能体的下一次操作'})`).join('\n')}` : '',
     b.rejected.length ? `YOUR LAST UPDATE HAD REJECTED OPERATIONS (fix them if they still matter):\n${b.rejected.map((r) => `- ${r}`).join('\n')}` : '',

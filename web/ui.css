@@ -161,8 +161,8 @@ body {
 /* Fold into the orb at the top-right corner, and unfold from it. The window's own scale and opacity are set from script (see Window). */
 .lm-window[data-motion] { pointer-events: none; }
 .lm-window[data-motion] .lm-view, .lm-window[data-motion] .lm-art { transform-origin: calc(100% - var(--cap-w) / 2) calc(var(--cap-h) / 2); }
-.lm-window[data-motion] .lm-orb-big { display: block; }
-.lm-window[data-motion='to-orb'] .lm-orb-big { animation: lm-orb-in .34s .14s cubic-bezier(.2, .8, .2, 1) both; }
+.lm-window[data-motion='from-orb'] .lm-orb-big { display: block; }
+.lm-window[data-motion='orb'] .lm-orb-big { animation: lm-orb-in .34s cubic-bezier(.2, .8, .2, 1) both; }
 .lm-window[data-motion='from-orb'] .lm-orb-big { animation: lm-orb-out .24s ease-in both; }
 @keyframes lm-orb-in { from { opacity: 0; transform: scale(.35); } }
 @keyframes lm-orb-out { to { opacity: 0; transform: scale(.35); } }

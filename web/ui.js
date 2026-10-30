@@ -882,11 +882,12 @@ void main() {
       busy = true
       root.dataset.motion = 'to-orb'
       const lead = fly(true)
-      big.core.ping()
-      // the frame folds once most of the cards have gone
+      // The cards go first, then the frame folds, and only once it has folded does the orb appear.
       setTimeout(() => tween(wait(440), easeInOut, (e, p) => foldTo(1 - 0.92 * e, p < 0.6 ? 1 - 0.5 * (p / 0.6) : 0.5 * (1 - (p - 0.6) / 0.4)), () => {
         root.dataset.state = 'collapsed'
-        root.removeAttribute('data-motion')
+        root.dataset.motion = 'orb'
+        big.core.ping()
+        setTimeout(() => { if (root.dataset.motion === 'orb') root.removeAttribute('data-motion') }, wait(360))
         clearFold()
         requestAnimationFrame(() => {
           const r = root.getBoundingClientRect()
@@ -894,7 +895,7 @@ void main() {
           draw()
           busy = false
         })
-      }), lead * 0.6)
+      }), Math.max(0, lead - 60))
     }
     const expand = () => {
       if (busy || root.dataset.state !== 'collapsed') return

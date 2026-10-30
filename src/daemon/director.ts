@@ -43,6 +43,7 @@ interface Saved {
   notes: string
   spec: Spec
   sessions?: Pick<Session, 'id' | 'key' | 'cwd' | 'title' | 'transcript' | 'offset' | 'lastEvent'>[]
+  touched?: Record<string, number>
 }
 
 const SAVE_FILE = join(LUMEN_DIR, 'screen.json')
@@ -57,6 +58,8 @@ const SETTLE_MS = 1000
 const HISTORY_MS = 60 * 60_000
 // A session that goes quiet is news too: the model hears of it after these silences, so that work can fade from the screen.
 const QUIET = [30 * 60_000, 3 * 3_600_000]
+// A panel nothing has updated for this long is about the past: it goes, whatever the model would keep.
+const PANEL_MS = 60 * 60_000
 // A screen saved longer ago than this is out of date: Lumen starts blank instead.
 const STALE_MS = 2 * 3_600_000
 const RANK: Record<Presence, number> = { idle: 0, thinking: 1, acting: 2, alert: 3 }
@@ -86,6 +89,8 @@ export class Director {
   private lastRun = 0
   private hiddenAt = Date.now()
   private hourFrom = Date.now()
+  /** When the model last wrote each element, so the screen can say how old a panel is. */
+  private touched: Record<string, number> = {}
   private failures = 0
   private rejected: string[] = []
   private abort?: AbortController
@@ -261,6 +266,7 @@ export class Director {
     if (!saved?.savedAt || Date.now() - saved.savedAt > STALE_MS) return
     this.notes = saved.notes
     this.spec = saved.spec
+    this.touched = saved.touched ?? {}
     collectGarbage(this.spec)
     for (const x of saved.sessions ?? []) this.sessions.set(x.id, { ...x, name: x.cwd ? basename(x.cwd) : x.key, presence: 'idle', inbox: [], quiet: 0 })
     this.connect()
@@ -269,7 +275,7 @@ export class Director {
     this.schedule(true)
   }
 
-  /** Every minute: tell the model about sessions that have gone quiet, and forget the ones long gone. */
+  /** Every minute: tell the model about sessions that have gone quiet, forget the ones long gone, and clear old panels. */
   private tick(): void {
     const now = Date.now()
     if (now - this.hourFrom >= 3_600_000) {
@@ -286,6 +292,15 @@ export class Director {
         this.schedule(false)
       }
     }
+    const old = this.spec.elements.shell.children.filter((id) => now - this.updated(id) > PANEL_MS)
+    if (!old.length) return
+    this.events.patch(old.flatMap((id) => this.drop(id)))
+    this.save()
+  }
+
+  /** When anything in an element's subtree was last written by the model; 0 for a screen saved before that was kept. */
+  private updated(id: string): number {
+    return Math.max(this.touched[id] ?? 0, ...(this.spec.elements[id]?.children ?? []).map((c) => this.updated(c)))
   }
 
   /** What a session's transcript gained since it was last read. */
@@ -335,6 +350,7 @@ export class Director {
     this.spec = createSpec()
     this.spec.state.presence = this.presence
     this.notes = ''
+    this.touched = {}
     this.seen = 0
     this.ledger.entries = []
     this.rejected = []
@@ -356,7 +372,8 @@ export class Director {
       mkdirSync(LUMEN_DIR, { recursive: true })
       const now = Date.now()
       const sessions = [...this.sessions.values()].filter((s) => !s.ended && now - s.lastEvent < KEEP_MS).map(({ id, key, cwd, title, transcript, offset, lastEvent }) => ({ id, key, cwd, title, transcript, offset, lastEvent }))
-      writeFileSync(SAVE_FILE, JSON.stringify({ savedAt: now, notes: this.notes, spec: this.spec, sessions } satisfies Saved))
+      const touched = Object.fromEntries(Object.entries(this.touched).filter(([id]) => id in this.spec.elements))
+      writeFileSync(SAVE_FILE, JSON.stringify({ savedAt: now, notes: this.notes, spec: this.spec, sessions, touched } satisfies Saved))
     } catch {
       // the screen is rebuilt from the transcripts next time
     }
@@ -412,6 +429,7 @@ export class Director {
       actions,
       sessions: [...this.sessions.values()].map((s) => ({ key: s.key, folder: s.name, title: s.title, state: s.ended ? 'exited' : s.presence, idleMs: now - s.lastEvent })),
       rejected: this.rejected,
+      ages: Object.fromEntries(this.spec.elements.shell.children.map((id) => [id, now - this.updated(id)])),
       first: !this.notes && this.seen === 0 && !this.spec.elements.shell.children.length
     }
     const rejected: string[] = []
@@ -426,6 +444,8 @@ export class Director {
         ops++
       } else {
         const v = applyModelPatch(this.spec, obj)
+        const id = obj.path?.startsWith('/elements/') ? obj.path.split('/')[2] : undefined
+        if (v.ok && id && id !== 'shell') this.touched[id] = Date.now()
         if (v.ok) {
           ops++
           this.events.patch([v.patch])
