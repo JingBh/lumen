@@ -1,4 +1,4 @@
-import { Tray, app, clipboard, dialog, ipcMain, nativeImage, shell } from 'electron'
+import { Tray, app, clipboard, dialog, ipcMain, nativeImage, powerMonitor, shell } from 'electron'
 import { appendFileSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { LUMEN_DIR, loadConfig } from '../daemon/config'
@@ -53,7 +53,18 @@ void app.whenReady().then(async () => {
     patch: (ops) => send('patch', ops),
     log
   })
-  appWindow.onVisibility = (visible) => director.setVisible(visible)
+  // The screen can be seen while the window is open and the screen is not locked.
+  let locked = false
+  const watched = (): void => director.setVisible(!appWindow.collapsed && !locked)
+  appWindow.onVisibility = watched
+  powerMonitor.on('lock-screen', () => {
+    locked = true
+    watched()
+  })
+  powerMonitor.on('unlock-screen', () => {
+    locked = false
+    watched()
+  })
 
   let server: Awaited<ReturnType<typeof startHookServer>> | undefined
   let port = DEFAULT_PORT

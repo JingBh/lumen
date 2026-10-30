@@ -19,15 +19,15 @@ JSON Patch operations (RFC 6902), one JSON object per line and nothing else, e.g
 - /elements/shell/children: the ordered ids of the top-level elements, which are Panels
 - /state/<key>: a value that props bind with {"$state":"/key"}
 - /status: one sentence for the header, at most 60 characters
-- /notes: your updated memory, a string, always the last line
-Elements are flat and must be reachable from shell; write parents before children. Elements may also have "on" (event → action), "visible" and "repeat". If nothing needs to change, output only the /notes line.
+- /notes: your memory as one string, only when it has changed, as the last line
+Elements are flat and must be reachable from shell; write parents before children. Elements may also have "on" (event → action), "visible" and "repeat". If nothing needs to change, output nothing.
 
 GOOD TO KNOW
 - The user reads Chinese: write visible text in Chinese, but keep code, paths and identifiers as they are. Never show secrets.
 - Say only what NOTES, SCREEN or EVENTS support.
 - Panels are laid out in columns of about 14rem, as many as the window fits; span widens a panel. Columns are narrow, so keep text short: a few words per item rather than sentences, no description the content does not need. Let the layout and the components carry the meaning (status, numbers, progress, lists) instead of explaining in prose.
 - A panel that gathers one kind of thing from every session (what waits for the user, what is running, what came out) usually serves better than a panel per session.
-- The send action gives its text to an agent as if the user had typed it: {"action":"send","params":{"text":"…","to":"<tag>"}}. A permission prompt can only be answered in the agent's own terminal.
+- The send action gives its text to an agent as if the user had typed it: {"action":"send","params":{"text":"…","to":"<tag>"}}. It reaches the agent at its next tool call, so only an agent that is working can take it: when a session goes idle, Lumen removes what would send to it. A permission prompt can only be answered in the agent's own terminal.
 - NOTES hold at most 2000 characters. Date each item with the time an event last confirmed it, e.g. [14:05], and drop items nothing has confirmed for three hours.`
 
 export const systemPrompt = (): string => catalog.prompt({ system: INSTRUCTIONS })

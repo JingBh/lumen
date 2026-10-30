@@ -14,15 +14,15 @@ export interface Config {
     envFile: string
     keyName: string
     extraBody: Record<string, unknown>
+    /** Price per million tokens, in any currency, so the log can say what the runs cost. */
+    price?: { cachedInput: number; input: number; output: number }
   }
-  /** Wait this long for more events before asking the model (ms). */
-  debounceMs: number
-  /** Never wait longer than this while events keep arriving. */
-  maxWaitMs: number
-  /** Minimum time between two model runs of one session. */
-  minGapMs: number
-  /** The same three while the window is folded into the orb and nobody is reading the screen. */
-  hidden: { debounceMs: number; maxWaitMs: number; minGapMs: number }
+  /** After an important event (a prompt, a turn's end, a wait for the user, a click), ask the model this soon (ms). */
+  majorDelayMs: number
+  /** Tool calls and other small events are gathered and shown at most this often (ms). */
+  minorIntervalMs: number
+  /** Once the window has been folded into the orb, or the screen locked, this long, the model waits until it opens (ms). */
+  pauseAfterMs: number
   /** Tool results from these tools are never sent to the model. */
   denyTools: string[]
   /** Skip tool results that mention these path fragments. */
@@ -37,10 +37,9 @@ const defaults: Config = {
     keyName: 'LUMEN_API_KEY',
     extraBody: {}
   },
-  debounceMs: 400,
-  maxWaitMs: 2500,
-  minGapMs: 1000,
-  hidden: { debounceMs: 3000, maxWaitMs: 15000, minGapMs: 8000 },
+  majorDelayMs: 3000,
+  minorIntervalMs: 60_000,
+  pauseAfterMs: 60_000,
   denyTools: [],
   denyPaths: ['.env', 'id_rsa', 'id_ed25519', '.pem', 'credentials', 'secrets']
 }
@@ -50,7 +49,7 @@ export const loadConfig = (): Config => {
   const file = join(LUMEN_DIR, 'config.json')
   if (!existsSync(file)) writeFileSync(file, `${JSON.stringify(defaults, null, 2)}\n`)
   const user = JSON.parse(readFileSync(file, 'utf8')) as Partial<Config>
-  return { ...defaults, ...user, llm: { ...defaults.llm, ...user.llm }, hidden: { ...defaults.hidden, ...user.hidden } }
+  return { ...defaults, ...user, llm: { ...defaults.llm, ...user.llm } }
 }
 
 export const readKey = (config: Config): string => {

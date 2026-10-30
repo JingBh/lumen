@@ -4,11 +4,11 @@ import type { Config } from './config'
 import { LUMEN_DIR } from './config'
 import { foldHistory } from './fold'
 import { Ledger, applyHook } from './ledger'
-import { streamChat } from './llm'
+import { costOf, spent, streamChat, type Usage } from './llm'
 import { type Briefing, systemPrompt, userPrompt } from './prompt'
 import { applyModelPatch, collectGarbage, createSpec, overBudget } from './spec'
 import { parseTranscript } from './transcript'
-import type { HookPayload, LedgerEntry, Patch, PendingAction, Presence, Spec } from './types'
+import type { Element, HookPayload, LedgerEntry, Patch, PendingAction, Presence, Spec } from './types'
 
 export interface DirectorEvents {
   /** The whole screen: restored, reset, or for a window that has just connected. */
@@ -80,8 +80,12 @@ export class Director {
   private running = false
   private timer?: NodeJS.Timeout
   private clock?: NodeJS.Timeout
-  private dirtySince = 0
+  private dirty = false
+  private majorPending = false
+  private due = 0
   private lastRun = 0
+  private hiddenAt = Date.now()
+  private hourFrom = Date.now()
   private failures = 0
   private rejected: string[] = []
   private abort?: AbortController
@@ -152,12 +156,13 @@ export class Director {
     const effect = applyHook(this.ledger, p, s.key)
     if (p.hook_event_name === 'SessionEnd') s.ended = true
     if (effect.presence && !p.agent_id) this.setPresence(s, effect.presence)
+    if (effect.presence === 'idle' && !p.agent_id) this.unask(s)
     if (effect.changed) this.schedule(effect.urgent)
   }
 
-  /** The user closed something on the screen. It goes, with any container it leaves empty, and no agent hears of it. */
-  dismiss(id: string, label: string): void {
-    if (!this.spec.elements[id] || id === 'window' || id === 'shell') return
+  /** Take an element off the screen, with any container it leaves empty. */
+  private drop(id: string): Patch[] {
+    if (!this.spec.elements[id] || id === 'window' || id === 'shell') return []
     let gone = id
     for (;;) {
       const parent = Object.keys(this.spec.elements).find((k) => this.spec.elements[k].children.includes(gone))
@@ -165,10 +170,27 @@ export class Director {
       gone = parent
     }
     delete this.spec.elements[gone]
-    this.events.patch([{ op: 'remove', path: `/elements/${gone}` }, ...collectGarbage(this.spec)])
+    return [{ op: 'remove', path: `/elements/${gone}` }, ...collectGarbage(this.spec)]
+  }
+
+  /** The user closed something on the screen. It goes, and no agent hears of it. */
+  dismiss(id: string, label: string): void {
+    const ops = this.drop(id)
+    if (!ops.length) return
+    this.events.patch(ops)
     this.ledger.add({ ts: Date.now(), kind: 'note', text: `用户关闭了界面上的「${label}」，不作回答，也不要再问` })
     this.save()
-    this.schedule(false)
+    this.schedule(true)
+  }
+
+  /** An answer reaches an agent only through its hooks, so one that stops working can take none: its questions go. */
+  private unask(s: Session): void {
+    const asks = (on: Element['on']): boolean =>
+      Object.values(on ?? {}).flat().some((b) => (b as { action?: string; params?: { to?: string } }).action === 'send' && (b as { params?: { to?: string } }).params?.to === s.key)
+    const ops = Object.keys(this.spec.elements).filter((id) => asks(this.spec.elements[id]?.on)).flatMap((id) => this.drop(id))
+    if (!ops.length) return
+    this.events.patch(ops)
+    this.save()
   }
 
   /** A click in the window that should reach an agent: the session the action names, else the one that was active last. */
@@ -193,14 +215,16 @@ export class Director {
     return lines.join('\n')
   }
 
+  /** Whether anyone can see the screen: the window is open and the screen not locked. */
   setVisible(visible: boolean): void {
+    if (this.visible && !visible) this.hiddenAt = Date.now()
     this.visible = visible
-    if (visible && this.dirtySince) this.schedule(true)
+    if (visible && this.dirty) this.schedule(true)
   }
 
   setPaused(paused: boolean): void {
     this.paused = paused
-    if (!paused && this.dirtySince) this.schedule(true)
+    if (!paused && this.dirty) this.schedule(true)
   }
 
   /** A window that has just connected gets the whole screen. */
@@ -248,6 +272,11 @@ export class Director {
   /** Every minute: tell the model about sessions that have gone quiet, and forget the ones long gone. */
   private tick(): void {
     const now = Date.now()
+    if (now - this.hourFrom >= 3_600_000) {
+      if (spent.calls) this.events.log(`hour: ${spent.calls} calls, ${this.tokens(spent)}`)
+      Object.assign(spent, { calls: 0, input: 0, cached: 0, output: 0 })
+      this.hourFrom = now
+    }
     for (const s of this.sessions.values()) {
       const due = QUIET.filter((t) => now - s.lastEvent > t).length
       if (now - s.lastEvent > KEEP_MS) this.sessions.delete(s.id)
@@ -335,27 +364,40 @@ export class Director {
 
   // ---------- scheduling ----------
 
-  private schedule(urgent: boolean): void {
-    if (this.paused || this.disposed || this.loading) return
+  /** Tokens as the log shows them, with what they cost when a price is set. */
+  private tokens(u: Usage): string {
+    const k = (n: number): string => `${(n / 1000).toFixed(1)}k`
+    const cost = costOf(this.config, u)
+    return `${k(u.input)} in (${k(u.cached)} cached), ${k(u.output)} out${cost != null ? `, cost ${cost.toFixed(4)}` : ''}`
+  }
+
+  /** Nobody has been able to see the screen for a while: the window is folded into the orb, or the screen is locked. */
+  private away(): boolean {
+    return !this.visible && Date.now() - this.hiddenAt > this.config.pauseAfterMs
+  }
+
+  /** An important event is shown within seconds; tool calls and other small ones wait for the next interval. */
+  private schedule(major: boolean): void {
+    if (this.disposed) return
+    this.dirty = true
+    if (major) this.majorPending = true
+    if (this.paused || this.loading || this.away()) return
     const now = Date.now()
-    this.dirtySince ||= now
-    const { debounceMs, maxWaitMs, minGapMs } = this.visible ? this.config : this.config.hidden
     const backoff = this.failures ? Math.min(60_000, 4000 * 2 ** (this.failures - 1)) : 0
-    const at = Math.max(urgent ? now : Math.min(now + debounceMs, this.dirtySince + maxWaitMs), this.lastRun + minGapMs, this.lastRun + backoff)
+    const want = Math.max(major ? now + this.config.majorDelayMs : this.lastRun + this.config.minorIntervalMs, now, this.lastRun + backoff)
+    this.due = this.due ? Math.min(this.due, want) : want
     clearTimeout(this.timer)
-    this.timer = setTimeout(() => void this.run(), Math.max(0, at - now))
+    this.timer = setTimeout(() => void this.run(), this.due - now)
   }
 
   private async run(): Promise<void> {
-    if (this.running || this.paused || this.disposed) return
+    this.due = 0
+    if (this.running || this.paused || this.disposed || this.away()) return
     const fresh = this.ledger.entries.filter((e) => e.seq > this.seen)
     const actions = [...this.sessions.values()].flatMap((s) => s.inbox)
-    if (!fresh.length && !actions.some((a) => a.ts > this.lastRun)) {
-      this.dirtySince = 0
-      return
-    }
+    this.dirty = this.majorPending = false
+    if (!fresh.length && !actions.some((a) => a.ts > this.lastRun)) return
     this.running = true
-    this.dirtySince = 0
     this.lastRun = Date.now()
     const started = this.lastRun
     this.status = 'running'
@@ -374,6 +416,7 @@ export class Director {
     }
     const rejected: string[] = []
     let ops = 0
+    let used: Usage | undefined
     const apply = (obj: { op?: string; path?: string; value?: unknown }): void => {
       if (obj.path === '/notes' && typeof obj.value === 'string') this.notes = obj.value.slice(0, 2400)
       else if (obj.path === '/status' && typeof obj.value === 'string') {
@@ -415,7 +458,7 @@ export class Director {
       let buf = ''
       const user = userPrompt(briefing, this.config)
       if (process.env.LUMEN_DEBUG) writeFileSync(join(LUMEN_DIR, 'last-prompt.txt'), user)
-      for await (const delta of streamChat(this.config, { maxTokens: 3500, signal: this.abort.signal, messages: [{ role: 'system', content: systemPrompt() }, { role: 'user', content: user }] })) {
+      for await (const delta of streamChat(this.config, { maxTokens: 3500, signal: this.abort.signal, onUsage: (u) => (used = u), messages: [{ role: 'system', content: systemPrompt() }, { role: 'user', content: user }] })) {
         buf += delta
         let i: number
         while ((i = buf.indexOf('\n')) >= 0) {
@@ -441,7 +484,7 @@ export class Director {
       this.failures = 0
       this.rejected = rejected.slice(0, 6)
       this.status = 'idle'
-      this.events.log(`run: ${events.length} events → ${ops} ops in ${((Date.now() - started) / 1000).toFixed(1)}s${rejected.length ? `, ${rejected.length} rejected: ${rejected.slice(0, 3).map((r) => r.slice(0, 160)).join(' | ')}` : ''}`)
+      this.events.log(`run: ${events.length} events → ${ops} ops in ${((Date.now() - started) / 1000).toFixed(1)}s${used ? `, ${this.tokens(used)}` : ''}${rejected.length ? `, ${rejected.length} rejected: ${rejected.slice(0, 3).map((r) => r.slice(0, 160)).join(' | ')}` : ''}`)
       this.ledger.trim(60, this.seen)
       this.save()
     } catch (e) {
@@ -451,7 +494,7 @@ export class Director {
       this.events.log(`run failed (${this.failures}): ${e instanceof Error ? e.message : String(e)}`)
     } finally {
       this.running = false
-      if (!this.disposed && (this.ledger.seq > this.seen || this.failures)) this.schedule(false)
+      if (!this.disposed && (this.ledger.seq > this.seen || this.failures)) this.schedule(this.majorPending)
     }
   }
 

@@ -847,6 +847,25 @@ void main() {
       view.style.opacity = art.style.opacity = alpha
     }
     const clearFold = () => { view.style.transform = art.style.transform = ''; view.style.opacity = art.style.opacity = '' }
+    // The cards follow the fold in turn: out of the orb nearest first as the window opens, back into it farthest first as
+    // it folds. Web animations, so the cards' own entry animation does not play again afterwards.
+    const flights = []
+    const fly = (out) => {
+      flights.splice(0).forEach((a) => a.cancel())
+      if (reduced?.matches) return
+      const box = root.getBoundingClientRect(), cap = parseFloat(getComputedStyle(root).getPropertyValue('--cap-w')) || 128
+      const ox = box.right - cap / 2, oy = box.top + cap / 2
+      const list = [...body.querySelectorAll('.lm-grid > *')].map((e) => {
+        const r = e.getBoundingClientRect(), x = ox - (r.left + r.width / 2), y = oy - (r.top + r.height / 2)
+        return { e, x, y, d: Math.hypot(x, y) || 1 }
+      }).sort((a, b) => (out ? b.d - a.d : a.d - b.d))
+      const step = Math.min(out ? 25 : 40, (out ? 240 : 300) / Math.max(1, list.length - 1))
+      list.forEach(({ e, x, y, d }, i) => {
+        // toward the orb by a quarter of the way, 60px at most
+        const k = Math.min(0.25, 60 / d), away = { opacity: 0, translate: `${x * k}px ${y * k}px`, scale: 0.92 }, home = { opacity: 1, translate: '0 0', scale: 1 }
+        flights.push(e.animate(out ? [home, away] : [away, home], { duration: out ? 220 : 360, delay: i * step, easing: out ? 'cubic-bezier(.4, 0, 1, 1)' : 'cubic-bezier(.2, .8, .2, 1)', fill: out ? 'forwards' : 'backwards' }))
+      })
+    }
     const tween = (ms, ease, frame, done) => {
       const t0 = performance.now()
       const step = (now) => {
@@ -860,6 +879,7 @@ void main() {
       if (busy || root.dataset.state !== 'open') return
       busy = true
       root.dataset.motion = 'to-orb'
+      fly(true)
       big.core.ping()
       tween(wait(440), easeInOut, (e, p) => foldTo(1 - 0.92 * e, p < 0.6 ? 1 - 0.5 * (p / 0.6) : 0.5 * (1 - (p - 0.6) / 0.4)), () => {
         root.dataset.state = 'collapsed'
@@ -882,6 +902,7 @@ void main() {
         root.style.translate = ''
         root.dataset.state = 'open'
         root.dataset.motion = 'from-orb'
+        fly(false)
         foldTo(0.08, 0)
         tween(wait(480), easeOut, (e, p) => foldTo(0.08 + 0.92 * e, p < 0.4 ? 0.5 * (p / 0.4) : 0.5 + 0.5 * ((p - 0.4) / 0.6)), () => {
           clearFold()

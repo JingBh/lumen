@@ -1,9 +1,6 @@
-// The desktop window: renders whatever the daemon (in the main process) sends, follows the system theme.
+// The desktop window: renders whatever the daemon (in the main process) sends, always in the dark style.
 ;(() => {
-  const dark = matchMedia('(prefers-color-scheme: dark)')
-  const theme = () => Lumen.configure({ theme: dark.matches ? 'dark' : 'light', chrome: 'drag' })
-  theme()
-  dark.addEventListener('change', theme)
+  Lumen.configure({ theme: 'dark', chrome: 'drag' })
 
   const toast = (text) => {
     document.querySelector('.lm-toast')?.remove()
