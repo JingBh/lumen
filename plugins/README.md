@@ -35,4 +35,5 @@ Codex runs a plugin's hooks only once you have trusted them: review them with `/
 Four hooks (UserPromptSubmit, PreToolUse, PermissionRequest, Stop). In ZCode, open 插件市场 → 添加 → 添加插件市场 and
 paste the full path of this folder, then install Lumen from 个人 → lumen.
 
-Both Codex and ZCode install a copy. After the plugin changes, refresh the marketplace and update the plugin.
+A session picks up a plugin when it starts: one that was already open keeps running without it. Both Codex and ZCode
+install a copy. After the plugin changes, refresh the marketplace and update the plugin.

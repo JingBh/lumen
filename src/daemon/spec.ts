@@ -112,6 +112,13 @@ const setIn = (root: Record<string, unknown>, keys: string[], op: Patch['op'], v
 
 export type Verdict = { ok: true; patch: Patch } | { ok: false; reason: string }
 
+/** Whether `from` leads to `to` through children. */
+const reaches = (spec: Spec, from: string, to: string, seen = new Set<string>()): boolean =>
+  from === to || (!seen.has(from) && !!seen.add(from) && (spec.elements[from]?.children ?? []).some((c) => reaches(spec, c, to, seen)))
+
+/** A child that leads back to its parent would make the screen contain itself, and every walk over it endless. */
+const loops = (spec: Spec, id: string, children: string[]): boolean => children.some((c) => reaches(spec, c, id))
+
 /** Apply one model patch to `spec` if it is allowed; the returned patch is what to forward to the window. */
 export const applyModelPatch = (spec: Spec, raw: unknown): Verdict => {
   if (!isObj(raw) || (raw.op !== 'add' && raw.op !== 'replace' && raw.op !== 'remove') || typeof raw.path !== 'string') return { ok: false, reason: 'not a patch' }
@@ -142,6 +149,7 @@ export const applyModelPatch = (spec: Spec, raw: unknown): Verdict => {
     const r = cleanElement(id, value)
     if ('error' in r) return { ok: false, reason: r.error }
     if (!spec.elements[id] && Object.keys(spec.elements).length >= MAX_ELEMENTS) return { ok: false, reason: 'too many elements' }
+    if (loops(spec, id, r.el.children)) return { ok: false, reason: `${id} would contain itself` }
     spec.elements[id] = r.el
     return { ok: true, patch: { op: 'add', path: raw.path, value: r.el } }
   }
@@ -155,11 +163,13 @@ export const applyModelPatch = (spec: Spec, raw: unknown): Verdict => {
   if (id === 'shell') {
     const kids = draft.children
     if (!Array.isArray(kids) || kids.some((c) => typeof c !== 'string')) return { ok: false, reason: 'shell.children must be strings' }
+    if (loops(spec, id, kids as string[])) return { ok: false, reason: 'shell would contain itself' }
     spec.elements.shell = { ...current, children: (kids as string[]).slice(0, 40) }
     return { ok: true, patch: { op, path: raw.path, value } }
   }
   const r = cleanElement(id, draft)
   if ('error' in r) return { ok: false, reason: r.error }
+  if (loops(spec, id, r.el.children)) return { ok: false, reason: `${id} would contain itself` }
   spec.elements[id] = r.el
   return { ok: true, patch: { op, path: raw.path, value } }
 }
