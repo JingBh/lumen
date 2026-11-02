@@ -127,13 +127,20 @@ body {
 .lm-window[data-state='collapsed'][data-corner='sw'] { inset: auto auto 0 0; }
 .lm-view {
   position: absolute; inset: 0; display: flex; flex-direction: column; min-width: 0; overflow: hidden;
-  background: radial-gradient(40rem 26rem at 0% 0%, var(--glow-1), transparent 70%), radial-gradient(36rem 24rem at 100% 100%, var(--glow-2), transparent 70%), var(--frame-fill);
+  background: radial-gradient(40rem 26rem at calc(var(--px, 0) * 3rem) calc(var(--py, 0) * 3rem), var(--glow-1), transparent 70%), radial-gradient(36rem 24rem at calc(100% + var(--px, 0) * 3rem) calc(100% + var(--py, 0) * 3rem), var(--glow-2), transparent 70%), var(--frame-fill);
 }
 .lm-art { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
 .lm-art .rim { fill: none; stroke: var(--frame-line); stroke-width: 1.25; stroke-linejoin: round; filter: drop-shadow(0 0 5px color-mix(in oklab, var(--accent) calc(var(--bloom) * 100%), transparent)); }
 .lm-art .echo { fill: none; stroke: var(--line-2); stroke-width: 1; stroke-linejoin: round; }
 .lm-art .dots { fill: none; stroke: var(--line-2); stroke-width: 1; stroke-dasharray: 1.5 5; }
 .lm-art .pip { fill: var(--line-2); }
+/* The outline catches the pointer's light where it is nearest (see Window in ui.js). */
+.lm-art .glint { fill: none; stroke-width: 1.5; stroke-linejoin: round; opacity: 0; }
+.lm-art stop { stop-color: var(--lit); }
+.lm-art stop + stop { stop-opacity: 0; }
+/* Depth (see Window in ui.js): --px and --py say where the pointer is across the window, -1 to 1, and fall back to 0 when
+   it leaves. Behind the glass the window's glow and each panel's grid drift with it; in front, the corner marks drift against it. */
+.lm-art .echo, .lm-art .pip { translate: calc(var(--px, 0) * -3px) calc(var(--py, 0) * -3px); }
 .lm-frame-body { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: calc(var(--m) + .35rem); }
 .lm-frame-body > .lm-shell { flex: 1; min-height: 0; }
 @keyframes lm-pop { from { opacity: 0; transform: scale(.94); } }
@@ -243,15 +250,26 @@ body {
 .lm-ghosts { position: absolute; inset: 0; pointer-events: none; }
 .lm-ghosts > .lm-leaving { animation: lm-off .45s ease-in forwards; }
 @keyframes lm-off { to { opacity: 0; scale: .97; filter: brightness(1.7); } }
+/* The panel under the pointer is framed by four corner marks that close in on it, then glide with it or to the next. */
+.lm-reticle { position: absolute; left: 0; top: 0; pointer-events: none; opacity: 0; filter: drop-shadow(0 0 4px color-mix(in oklab, var(--accent) calc(var(--bloom) * 100%), transparent)); transition: transform .55s cubic-bezier(.2, .8, .2, 1), width .55s cubic-bezier(.2, .8, .2, 1), height .55s cubic-bezier(.2, .8, .2, 1), opacity .2s; }
+.lm-reticle[data-on] { opacity: 1; }
+.lm-reticle::before {
+  content: ''; position: absolute; inset: -5px; border: 1.5px solid var(--accent);
+  mask: linear-gradient(#000 0 0) 0 0 / .8rem .8rem no-repeat, linear-gradient(#000 0 0) 100% 0 / .8rem .8rem no-repeat, linear-gradient(#000 0 0) 0 100% / .8rem .8rem no-repeat, linear-gradient(#000 0 0) 100% 100% / .8rem .8rem no-repeat;
+}
+.lm-reticle[data-lock]::before { animation: lm-lock .35s cubic-bezier(.2, .8, .2, 1); }
+@keyframes lm-lock { from { inset: -14px; opacity: 0; } }
 @container shell (max-width: 34rem) { .lm-workspace { padding: .75rem; } .lm-grid { gap: .75rem; } }
 
-/* ---------- Panel: a hairline plane with one chamfered corner ---------- */
+/* ---------- Panel: a hairline plane with one chamfered corner ----------
+   The pointer lights it (see Window in ui.js): --lx and --ly are where the light falls, --lit-on how strongly, 0 to 1. */
 .lm-panel {
   --cut: 1.1rem;
   position: relative; display: flex; flex-direction: column; min-width: 0;
   container: panel / inline-size;
-  background: linear-gradient(165deg, var(--panel-a), var(--panel-b));
+  background: radial-gradient(16rem circle at var(--lx, 50%) var(--ly, 50%), color-mix(in oklab, var(--accent) calc(var(--lit-on, 0) * 12%), transparent), transparent), linear-gradient(165deg, var(--panel-a), var(--panel-b));
   border: 1px solid var(--edge, var(--line));
+  border-image: radial-gradient(20rem circle at var(--lx, 50%) var(--ly, 50%), color-mix(in oklab, var(--lit) calc(var(--lit-on, 0) * 100%), var(--edge, var(--line))), var(--edge, var(--line))) 1;
   clip-path: polygon(0 0, 100% 0, 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, 0 100%);
   animation: lm-on .5s ease-out both; animation-delay: calc(var(--i, 0) * 70ms);
 }
@@ -264,16 +282,22 @@ body {
     linear-gradient(var(--lit), var(--lit)) 100% 0 / .6rem 1px no-repeat,
     linear-gradient(var(--lit), var(--lit)) 100% 0 / 1px .6rem no-repeat;
 }
-/* When the agent edits what a panel shows, its edge glows for a moment, so the eye finds what changed. */
+/* A line of light passes down a panel as it appears. When the agent edits what it shows, its edge glows for a moment and
+   the line passes again, so the eye finds what changed. */
+.lm-sheen::after { content: ''; position: absolute; inset: 0 0 auto; height: 1px; opacity: 0; background: linear-gradient(90deg, transparent, var(--lit) 25% 75%, transparent); box-shadow: 0 0 .9rem .1rem var(--lit-glow); animation: lm-scan .8s ease-in-out both; animation-delay: calc(var(--i, 0) * 70ms); }
 .lm-panel[data-touch] .lm-sheen { animation: lm-touch 1.4s ease-out; }
+.lm-panel[data-touch] .lm-sheen::after { animation: lm-rescan 1s ease-in-out; }
 .lm-panel::after {
   content: ''; position: absolute; right: -1px; bottom: -1px; width: var(--cut); height: var(--cut); pointer-events: none;
   background: linear-gradient(to bottom right, transparent calc(50% - 1.2px), var(--edge, var(--line-2)) calc(50% - 1.2px), var(--edge, var(--line-2)) calc(50% - .2px), transparent calc(50% - .2px));
 }
+/* The grid under the glass: always faint toward the far corner, and clearer where the light falls. */
 .lm-panel::before {
-  content: ''; position: absolute; inset: 0; z-index: 0; pointer-events: none; opacity: .5;
-  background: linear-gradient(var(--grid) 1px, transparent 1px) 0 0 / 1.5rem 1.5rem, linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0 / 1.5rem 1.5rem;
-  mask-image: radial-gradient(120% 100% at 100% 0%, #000, transparent 72%); -webkit-mask-image: radial-gradient(120% 100% at 100% 0%, #000, transparent 72%);
+  content: ''; position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  background: linear-gradient(var(--line) 1px, transparent 1px) 0 0 / 1.5rem 1.5rem, linear-gradient(90deg, var(--line) 1px, transparent 1px) 0 0 / 1.5rem 1.5rem;
+  background-position: calc(var(--px, 0) * 5px) calc(var(--py, 0) * 5px);
+  mask-image: radial-gradient(120% 100% at 100% 0%, rgb(0 0 0 / .25), transparent 72%), radial-gradient(10rem circle at var(--lx, 50%) var(--ly, 50%), rgb(0 0 0 / var(--lit-on, 0)), transparent);
+  -webkit-mask-image: radial-gradient(120% 100% at 100% 0%, rgb(0 0 0 / .25), transparent 72%), radial-gradient(10rem circle at var(--lx, 50%) var(--ly, 50%), rgb(0 0 0 / var(--lit-on, 0)), transparent);
 }
 .lm-head { position: relative; z-index: 1; display: flex; align-items: baseline; gap: .75rem; padding: .8rem 1.125rem .7rem; flex: none; background: linear-gradient(90deg, var(--head-band), transparent 75%); }
 .lm-head h2 { margin: 0; min-width: 0; font-size: .9375rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -283,6 +307,9 @@ body {
 .lm-panel[data-scroll] { max-height: var(--max-h, 30rem); }
 @keyframes lm-on { from { opacity: 0; scale: .98; filter: brightness(1.8); } }
 @keyframes lm-touch { from { box-shadow: inset 0 0 0 1px var(--lit), inset 0 0 1.6rem -.5rem var(--lit-glow); } }
+/* Two names for one sweep, so that switching from the first to the second plays it again. */
+@keyframes lm-scan { from { top: 0; opacity: 1; } 75% { opacity: 1; } to { top: 100%; opacity: 0; } }
+@keyframes lm-rescan { from { top: 0; opacity: 1; } 75% { opacity: 1; } to { top: 100%; opacity: 0; } }
 @container panel (max-width: 20rem) { .lm-body { padding: .875rem .875rem 1.125rem; } .lm-head { padding-inline: .875rem; } }
 
 /* ---------- Every element the renderer places: never wider than its container, whatever its props or content ---------- */
