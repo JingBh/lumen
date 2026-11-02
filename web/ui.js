@@ -890,7 +890,7 @@ void main() {
       }).sort((a, b) => (out ? b.d - a.d : a.d - b.d))
       const [start, duration, step] = out ? [0, 260, Math.min(45, 450 / Math.max(1, list.length - 1))] : [260, 420, Math.min(60, 720 / Math.max(1, list.length - 1))]
       list.forEach(({ e, x, y, d }, i) => {
-        const away = { opacity: 0, translate: `${(x / d) * 32}px ${(y / d) * 32}px`, scale: 0.9, filter: 'brightness(1.9)' }, home = { opacity: 1, translate: '0 0', scale: 1, filter: 'brightness(1)' }
+        const away = { opacity: 0, transform: `translate(${(x / d) * 32}px, ${(y / d) * 32}px) scale(.9)`, filter: 'brightness(1.9)' }, home = { opacity: 1, transform: 'none', filter: 'brightness(1)' }
         flights.push(e.animate(out ? [home, away] : [away, home], { duration, delay: start + i * step, easing: out ? 'cubic-bezier(.4, 0, 1, 1)' : 'cubic-bezier(.2, .8, .2, 1)', fill: out ? 'forwards' : 'backwards' }))
       })
       return list.length ? start + duration + step * (list.length - 1) : 0
@@ -1022,23 +1022,21 @@ void main() {
     hit.addEventListener('lostpointercapture', release)
     hit.addEventListener('click', (e) => { if (e.detail === 0) setState('open') })
 
-    // The pointer is a light over the glass. The outline and the panels within reach catch it on their edges, the panels
-    // on their surface too, where they show the grid under the glass; behind the glass the grid and the window's glow
-    // drift with the pointer, in front of it the corner marks drift the other way, and the orb in the header turns toward
-    // it. Eased, and only while it settles.
+    // The pointer is a light over the glass: the outline and the panels within reach catch it on their edges, the panels
+    // on their surface too. The card under it leans as if pressed there (see [data-tilt]), and the orb in the header turns
+    // toward it. Eased, and only while it settles.
     const lamp = { x: 0, y: 0, on: 0 }, light = { ...lamp }
-    let lighting = 0, litAt = 0
+    const leans = new Map() // card → where it leans toward, -1 to 1 across it, until it is flat again
+    let lighting = 0, litAt = 0, card = null
     const shine = (now) => {
       const e = 1 - Math.exp(-Math.min((now - litAt) / 1000, 0.05) * 12)
       litAt = now
       // Back after it has faded, the light comes up where the pointer is instead of sweeping over from where it left.
       if (light.on < 0.02) Object.assign(light, { x: lamp.x, y: lamp.y })
       for (const k in lamp) light[k] += (lamp[k] - light[k]) * e
-      const still = Math.abs(lamp.x - light.x) + Math.abs(lamp.y - light.y) < 0.5 && Math.abs(lamp.on - light.on) < 0.005
+      let still = Math.abs(lamp.x - light.x) + Math.abs(lamp.y - light.y) < 0.5 && Math.abs(lamp.on - light.on) < 0.005
       if (still) Object.assign(light, lamp)
-      const box = root.getBoundingClientRect(), reach = 8 * rem()
-      root.style.setProperty('--px', ((((light.x - box.left) / box.width) * 2 - 1) * light.on).toFixed(3))
-      root.style.setProperty('--py', ((((light.y - box.top) / box.height) * 2 - 1) * light.on).toFixed(3))
+      const box = root.getBoundingClientRect(), u = rem(), reach = 8 * u
       lens.setAttribute('cx', (light.x - box.left).toFixed(1))
       lens.setAttribute('cy', (light.y - box.top).toFixed(1))
       glint.style.opacity = light.on.toFixed(3)
@@ -1048,12 +1046,33 @@ void main() {
         panel.style.setProperty('--ly', `${y.toFixed(1)}px`)
         panel.style.setProperty('--lit-on', (light.on * clamp(1 - Math.hypot(Math.max(-x, 0, x - r.width), Math.max(-y, 0, y - r.height)) / reach, 0, 1)).toFixed(3))
       }
+      if (card && !leans.has(card)) leans.set(card, { x: 0, y: 0 })
+      // A card leans at most as far as brings an edge half a rem closer, so a wide one leans less than a narrow one.
+      const most = (side) => Math.min(4, ((u / side) * 180) / Math.PI)
+      for (const [c, t] of leans) {
+        const r = c.getBoundingClientRect(), over = c === card && c.isConnected
+        const ax = over ? clamp(((lamp.x - r.left) / r.width) * 2 - 1, -1, 1) : 0, ay = over ? clamp(((lamp.y - r.top) / r.height) * 2 - 1, -1, 1) : 0
+        t.x += (ax - t.x) * e
+        t.y += (ay - t.y) * e
+        if (Math.abs(ax - t.x) + Math.abs(ay - t.y) > 0.002) still = false
+        else if (!over) {
+          leans.delete(c)
+          c.removeAttribute('data-tilt')
+          continue
+        }
+        c.style.setProperty('--tx', t.x.toFixed(3))
+        c.style.setProperty('--ty', t.y.toFixed(3))
+        c.style.setProperty('--ry', `${(t.x * most(c.offsetWidth)).toFixed(2)}deg`)
+        c.style.setProperty('--rx', `${(-t.y * most(c.offsetHeight)).toFixed(2)}deg`)
+        c.setAttribute('data-tilt', '')
+      }
       lighting = still ? 0 : requestAnimationFrame(shine)
     }
     const relight = () => { if (!lighting) { litAt = performance.now(); lighting = requestAnimationFrame(shine) } }
     root.addEventListener('pointermove', (e) => {
       if (e.pointerType !== 'mouse' || reduced?.matches || root.dataset.state !== 'open') return
       Object.assign(lamp, { x: e.clientX, y: e.clientY, on: 1 })
+      card = e.target.closest('.lm-grid > *')
       const r = orb.el.getBoundingClientRect(), span = Math.max(root.clientWidth, root.clientHeight) / 2
       orb.core.pointer(clamp((e.clientX - r.left - r.width / 2) / span, -1, 1), clamp((e.clientY - r.top - r.height / 2) / span, -1, 1))
       relight()
@@ -1062,6 +1081,7 @@ void main() {
     orb.el.addEventListener('pointerleave', () => orb.core.hover(false))
     const dark = () => {
       lamp.on = 0
+      card = null
       orb.core.pointer(0, 0)
       relight()
     }
@@ -1118,11 +1138,10 @@ void main() {
   registry.Shell = (p) => {
     const grid = el('main', { class: 'lm-grid' })
     const ghosts = el('div', { class: 'lm-ghosts', 'aria-hidden': 'true' })
-    const reticle = el('i', { class: 'lm-reticle', 'aria-hidden': 'true' })
-    const ws = el('div', { class: 'lm-workspace' }, el('div', { class: 'lm-stage' }, grid, ghosts, reticle))
+    const ws = el('div', { class: 'lm-workspace' }, el('div', { class: 'lm-stage' }, grid, ghosts))
     const root = el('div', { class: 'lm-shell' }, ws)
     const placed = new WeakMap()
-    let flow = 'auto', fill = false, frame = 0, target = null
+    let flow = 'auto', fill = false, frame = 0
 
     const pack = () => {
       frame = 0
@@ -1179,37 +1198,13 @@ void main() {
       const fresh = items.filter((it) => !placed.has(it.e))
       for (const { e } of fresh) e.style.transition = 'none'
       for (const it of items) {
-        it.e.style.transform = `translate(${it.c * (cw + gap)}px, ${it.y}px)`
+        it.e.style.translate = `${it.c * (cw + gap)}px ${it.y}px`
         placed.set(it.e, it)
       }
       Object.assign(grid.style, across ? { width: `${Math.max(0, tops.length * (cw + gap) - gap)}px`, height: `${H}px` } : { width: '', height: `${Math.max(0, top(0, tops.length) - gap)}px` })
       if (fresh.length) void grid.offsetWidth
       for (const { e } of fresh) e.style.transition = ''
-      if (target?.parentNode === grid) aim(); else lock(null)
     }
-
-    // The panel under the pointer is framed by corner marks (see .lm-reticle), which glide along when the layout moves it.
-    const aim = () => {
-      const m = new DOMMatrix(target.style.transform)
-      Object.assign(reticle.style, { transform: `translate(${m.e}px, ${m.f}px)`, width: `${target.offsetWidth}px`, height: `${target.offsetHeight}px` })
-    }
-    const lock = (next) => {
-      if (next === target) return
-      const shown = !!target
-      target = next
-      reticle.toggleAttribute('data-on', !!next)
-      if (!next) return
-      // Shown afresh, they close in where the panel is rather than gliding over from the last one.
-      if (!shown) reticle.style.transition = 'none'
-      aim()
-      reticle.removeAttribute('data-lock')
-      void reticle.offsetWidth
-      reticle.style.transition = ''
-      reticle.setAttribute('data-lock', '')
-    }
-    // Across the gaps between panels the marks stay on the last one, so moving to the next glides.
-    grid.addEventListener('pointerover', (e) => { if (e.pointerType === 'mouse' && !reduced?.matches) lock(e.target.closest('.lm-grid > *') ?? target) })
-    grid.addEventListener('pointerleave', () => lock(null))
     const later = () => { frame ||= requestAnimationFrame(pack) }
     const sizes = new ResizeObserver(later)
     sizes.observe(ws)
