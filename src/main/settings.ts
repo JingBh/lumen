@@ -11,6 +11,8 @@ export interface Settings {
   /** Which corner the anchor is: the one nearest the screen's edges when the window last folded or unfolded. */
   corner?: Corner
   size: { w: number; h: number }
+  /** Whether devices on the local network may open the screen in a browser. */
+  lan?: boolean
 }
 
 const file = (): string => join(app.getPath('userData'), 'settings.json')

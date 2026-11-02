@@ -1,6 +1,7 @@
 /* Lumen — a generative-UI component set for a floating, transparent desktop window.
    Light is the only material: glass panels in a tinted, text-free frame, white-light ink, colour reserved for meaning.
-   Switches on <html>: data-theme (dark | light), data-palette (see below), data-chrome (drag | plain).
+   Switches on <html>: data-theme (dark | light), data-palette (see below), data-chrome (drag | plain),
+   data-controls (window | fullscreen).
    Sizing: rem scales with the window, every component answers to its own container. */
 
 :root {
@@ -146,8 +147,11 @@ body {
   color: var(--text); user-select: none; touch-action: none; cursor: grab;
 }
 .lm-window[data-dragging] .lm-rail { cursor: grabbing; }
-:root[data-chrome='plain'] .lm-rail { cursor: default; }
+:root[data-chrome='plain'] .lm-rail, :root[data-controls='fullscreen'] .lm-rail { cursor: default; }
 :root[data-chrome='plain'] .lm-wbtn { display: none; }
+/* The window's own buttons, or in a browser only the one that fills the screen. */
+.lm-wbtn[data-kind='full'], :root[data-controls='fullscreen'] .lm-wbtn { display: none; }
+:root[data-controls='fullscreen']:not([data-chrome='plain']) .lm-wbtn[data-kind='full'] { display: grid; }
 .lm-rail .lm-presence { --s: 2.1rem; }
 .lm-status {
   flex: 1; min-width: 0; margin: 0; font-size: .9375rem; line-height: 1.45; color: var(--text);
@@ -191,7 +195,7 @@ body {
 .lm-grips > [data-edge='ne'] { top: 0; right: 0; width: calc(.7rem + 14px); height: calc(.7rem + 14px); clip-path: polygon(0 0, 100% 0, 100% 100%); cursor: nesw-resize; }
 .lm-grips > [data-edge='se'] { bottom: 0; right: 0; width: calc(2.2rem + 10px); height: calc(2.2rem + 10px); clip-path: polygon(100% 0, 100% 100%, 0 100%); cursor: nwse-resize; }
 .lm-grips > [data-edge='sw'] { bottom: 0; left: 0; width: calc(.7rem + 14px); height: calc(.7rem + 14px); clip-path: polygon(0 0, 100% 100%, 0 100%); cursor: nesw-resize; }
-.lm-window[data-state='collapsed'] .lm-grips, :root[data-chrome='plain'] .lm-grips { display: none; }
+.lm-window[data-state='collapsed'] .lm-grips, :root[data-chrome='plain'] .lm-grips, :root[data-controls='fullscreen'] .lm-grips { display: none; }
 
 /* Confirm dialog: a hazard-marked module inside the window, clipped by its outline. */
 .lm-modal { position: absolute; inset: 0; z-index: 7; display: grid; place-items: center; padding: 1.25rem; background: radial-gradient(ellipse at center, oklch(0 0 0 / .3), oklch(0 0 0 / .6)); backdrop-filter: blur(9px) saturate(1.2); -webkit-backdrop-filter: blur(9px) saturate(1.2); animation: lm-fade .2s ease-out both; }

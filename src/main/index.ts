@@ -6,6 +6,7 @@ import { DEFAULT_PORT, loadToken, startHookServer } from '../daemon/server'
 import { Director } from '../daemon/director'
 import { AppWindow, type HostMessage } from './window'
 import { clearRuntime, writeRuntime } from './hooks'
+import { type LanServer, lanUrls, startLanServer } from './lan'
 import { buildMenu } from './menu'
 import { loadSettings, saveSettings } from './settings'
 
@@ -48,9 +49,17 @@ void app.whenReady().then(async () => {
     if (!appWindow.win.isDestroyed()) appWindow.win.webContents.send(`lumen:${channel}`, payload)
   }
 
+  // The screen goes to the window and to any page open on the local network.
+  let lan: LanServer | undefined
   const director = new Director(config, {
-    load: (spec) => send('load', spec),
-    patch: (ops) => send('patch', ops),
+    load: (spec) => {
+      send('load', spec)
+      lan?.broadcast('load', spec)
+    },
+    patch: (ops) => {
+      send('patch', ops)
+      lan?.broadcast('patch', ops)
+    },
     log
   })
   // The screen can be seen while the window is open and the screen is not locked.
@@ -108,6 +117,7 @@ void app.whenReady().then(async () => {
     quitting = true
     clearRuntime()
     server?.close()
+    lan?.close()
     director.dispose()
     app.exit(0)
   }
@@ -118,7 +128,27 @@ void app.whenReady().then(async () => {
   process.on('SIGTERM', quit)
   process.on('SIGINT', quit)
 
-  const appearance = (): void => send('appearance', { palette: settings.palette })
+  const appearance = (): void => {
+    send('appearance', { palette: settings.palette })
+    lan?.broadcast('appearance', { palette: settings.palette })
+  }
+
+  const allowLan = async (on: boolean): Promise<void> => {
+    lan?.close()
+    lan = undefined
+    settings.lan = on
+    if (on) {
+      try {
+        lan = await startLanServer(join(app.getAppPath(), 'web'), () => [['appearance', { palette: settings.palette }], ['load', director.spec]])
+        log(`lan server on port ${lan.port}`)
+      } catch (e) {
+        settings.lan = false
+        dialog.showErrorBox('Lumen', `无法开启局域网访问：${e instanceof Error ? e.message : String(e)}`)
+      }
+    }
+    saveSettings(settings)
+  }
+  if (settings.lan) void allowLan(true)
 
   ipcMain.on('lumen:ready', (e) => {
     if (e.sender !== appWindow.win.webContents) return
@@ -133,7 +163,7 @@ void app.whenReady().then(async () => {
   })
   const menu = (): Electron.Menu =>
     buildMenu(
-      { palette: settings.palette, paused: director.paused },
+      { palette: settings.palette, paused: director.paused, lan: lan && lanUrls(lan.port) },
       {
         palette: (id) => {
           settings.palette = id
@@ -142,6 +172,8 @@ void app.whenReady().then(async () => {
         },
         pause: (paused) => director.setPaused(paused),
         reset: () => void director.reset(),
+        lan: (on) => void allowLan(on),
+        copy: (text) => clipboard.writeText(text),
         quit
       }
     )

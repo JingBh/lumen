@@ -1,0 +1,29 @@
+// The page Lumen serves on the local network while that is allowed: the window's screen, live and read-only. It cannot
+// fold or move; its one button fills the screen, which shows the window without its drag rail.
+;(() => {
+  const fits = () => Lumen.configure({ chrome: document.fullscreenElement || !document.fullscreenEnabled ? 'plain' : 'drag' })
+  Lumen.configure({ theme: 'dark', controls: 'fullscreen' })
+  fits()
+  document.addEventListener('fullscreenchange', fits)
+
+  const toast = (text) => {
+    document.querySelector('.lm-toast')?.remove()
+    document.body.append(Object.assign(document.createElement('div'), { className: 'lm-toast', textContent: text }))
+    setTimeout(() => document.querySelector('.lm-toast')?.remove(), 2600)
+  }
+
+  const renderer = Lumen.createRenderer({
+    mount: document.getElementById('app'),
+    store: Lumen.createStore(),
+    onAction: (a) => (a.action === 'open_url' && /^https?:\/\//i.test(a.params?.url ?? '') ? open(a.params.url, '_blank', 'noopener') : toast('这里只能查看')),
+  })
+  // Lumen sends the whole screen when the page connects (and again after a reconnect), then each change.
+  const events = new EventSource('events')
+  events.addEventListener('load', (e) => {
+    const spec = JSON.parse(e.data)
+    spec.elements.window.props.collapsed = false
+    renderer.load(spec)
+  })
+  events.addEventListener('patch', (e) => JSON.parse(e.data).forEach((op) => renderer.patch(op)))
+  events.addEventListener('appearance', (e) => Lumen.configure(JSON.parse(e.data)))
+})()

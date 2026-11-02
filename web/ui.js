@@ -787,10 +787,12 @@ void main() {
 
     const min = el('button', { class: 'lm-wbtn', type: 'button', title: '收起为球', 'aria-label': '收起为球' }, svgIcon('M3 8h10'))
     const close = el('button', { class: 'lm-wbtn', type: 'button', 'data-kind': 'close', title: '关闭窗口', 'aria-label': '关闭窗口' }, svgIcon('M4 4l8 8M12 4l-8 8'))
+    // In a browser the window cannot fold or close; it can fill the screen.
+    const full = el('button', { class: 'lm-wbtn', type: 'button', 'data-kind': 'full', title: '全屏', 'aria-label': '全屏' }, svgIcon('M2.5 6V2.5H6M10 2.5h3.5V6M13.5 10v3.5H10M6 13.5H2.5V10'))
     // The header: the orb and a one-line summary of what the agents are doing; the whole band is the drag handle.
     const orb = registry.Presence({})
     const status = el('p', { class: 'lm-status', 'aria-live': 'polite' })
-    const rail = el('div', { class: 'lm-rail', 'data-tauri-drag-region': '' }, orb.el, status, min, close)
+    const rail = el('div', { class: 'lm-rail', 'data-tauri-drag-region': '' }, orb.el, status, min, close, full)
 
     // Confirm dialog: lives inside the window and is clipped by its outline.
     const cancel = el('button', { class: 'lm-btn', type: 'button' }, '取消', el('kbd', {}, 'Esc'))
@@ -940,6 +942,7 @@ void main() {
     }
     const setState = (state) => (state === 'collapsed' ? collapse() : expand())
     min.addEventListener('click', () => setState('collapsed'))
+    full.addEventListener('click', () => document.documentElement.requestFullscreen?.().catch(() => {}))
 
     // The orb: hover leans the rings toward the pointer, press squeezes it, a short click expands, a drag moves it.
     const nativeDrag = () => !!window.__TAURI_INTERNALS__
@@ -955,7 +958,8 @@ void main() {
     }
     let railDrag = null
     rail.addEventListener('pointerdown', (e) => {
-      if (e.button !== 0 || e.target.closest('.lm-wbtn') || nativeDrag() || document.documentElement.dataset.chrome === 'plain') return
+      const { chrome, controls } = document.documentElement.dataset
+      if (e.button !== 0 || e.target.closest('.lm-wbtn') || nativeDrag() || chrome === 'plain' || controls === 'fullscreen') return
       rail.setPointerCapture(e.pointerId)
       railDrag = { x: e.screenX, y: e.screenY }
       dragging(true)
@@ -1870,10 +1874,10 @@ void main() {
   }
 
   // Appearance lives on <html>: theme (dark | light), palette (ion | cryo | ember | phosphor | nebula | graphite),
-  // chrome (drag | plain). The window frame and the orb look the same in both themes.
-  // Omitted keys are left as they are.
+  // chrome (drag | plain), controls (window | fullscreen: the window's buttons, and whether it moves and resizes).
+  // The window frame and the orb look the same in both themes. Omitted keys are left as they are.
   const configure = (opts) => {
-    for (const k of ['theme', 'palette', 'chrome']) if (opts[k]) document.documentElement.dataset[k] = opts[k]
+    for (const k of ['theme', 'palette', 'chrome', 'controls']) if (opts[k]) document.documentElement.dataset[k] = opts[k]
     document.dispatchEvent(new Event('lm-appearance'))
   }
 
