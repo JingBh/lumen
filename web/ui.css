@@ -469,13 +469,13 @@ body {
 .lm-step::before { content: ''; position: absolute; left: .64rem; top: 1.35rem; bottom: .2rem; width: 1px; background: var(--line-2); }
 .lm-step:last-child::before { display: none; }
 .lm-step[data-s='done']::before { background: color-mix(in oklab, var(--accent) 55%, transparent); }
-.lm-step .n { position: relative; width: .95rem; height: .95rem; margin: .22rem 0 0 .17rem; border-radius: 50%; border: 1px solid var(--text-3); background: var(--panel-solid); }
+.lm-step .n { position: relative; display: grid; place-items: center; width: .95rem; height: .95rem; margin: .22rem 0 0 .17rem; border-radius: 50%; border: 1px solid var(--text-3); background: var(--panel-solid); }
+.lm-step .n svg { width: .6rem; height: .6rem; fill: none; stroke: var(--accent); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
 .lm-step[data-s='done'] .n { border-color: var(--accent); }
-.lm-step[data-s='done'] .n::after { content: ''; position: absolute; left: 31%; top: 14%; width: 26%; height: 50%; border: solid var(--accent); border-width: 0 1.5px 1.5px 0; transform: rotate(40deg); }
 .lm-step[data-s='active'] .n { border-color: var(--accent); box-shadow: 0 0 0 .22rem color-mix(in oklab, var(--accent) 20%, transparent), 0 0 .9rem color-mix(in oklab, var(--accent) calc(var(--bloom) * 100%), transparent); }
 .lm-step[data-s='active'] .n::after { content: ''; position: absolute; inset: 25%; border-radius: 50%; background: var(--accent); animation: lm-blink 4.8s ease-in-out infinite; }
-.lm-step[data-s='err'] .n { border-color: var(--err); }
-.lm-step[data-s='err'] .n::after { content: '×'; position: absolute; inset: 0; display: grid; place-items: center; color: var(--err); font-size: .8rem; line-height: 1; }
+.lm-step[data-s='failed'] .n { border-color: var(--err); }
+.lm-step[data-s='failed'] .n svg { stroke: var(--err); }
 .lm-step .t { font-weight: 500; overflow-wrap: anywhere; }
 .lm-step[data-s='pending'] .t { color: var(--text-3); font-weight: 400; }
 .lm-step .d { grid-column: 2; color: var(--text-3); font-size: .875rem; overflow-wrap: anywhere; }

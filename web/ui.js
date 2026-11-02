@@ -1522,7 +1522,7 @@ void main() {
     const comp = {
       el: root,
       update(p) {
-        root.replaceChildren(...(p.items ?? []).map((i) => el('li', { class: 'lm-step', 'data-s': i.state ?? 'pending' }, el('span', { class: 'n' }), el('span', { class: 't' }, i.label), i.meta ? el('span', { class: 'm' }, i.meta) : '', i.detail ? el('span', { class: 'd' }, i.detail) : '')))
+        root.replaceChildren(...(p.items ?? []).map((i) => el('li', { class: 'lm-step', 'data-s': i.state ?? 'pending' }, el('span', { class: 'n' }, i.state === 'done' ? glyph('ok') : i.state === 'failed' ? glyph('err') : ''), el('span', { class: 't' }, i.label), i.meta ? el('span', { class: 'm' }, i.meta) : '', i.detail ? el('span', { class: 'd' }, i.detail) : '')))
       },
     }
     comp.update(p)
