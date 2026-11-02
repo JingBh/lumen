@@ -6,6 +6,14 @@
   fits()
   document.addEventListener('fullscreenchange', fits)
 
+  // The window fills what is in view, toolbars or not, and the page does not zoom: Safari ignores user-scalable=no, but
+  // not its own gesture events.
+  const view = () => document.documentElement.style.setProperty('--view-h', `${window.visualViewport?.height ?? innerHeight}px`)
+  view()
+  window.visualViewport?.addEventListener('resize', view)
+  addEventListener('resize', view)
+  for (const type of ['gesturestart', 'gesturechange']) document.addEventListener(type, (e) => e.preventDefault())
+
   const toast = (text) => {
     document.querySelector('.lm-toast')?.remove()
     document.body.append(Object.assign(document.createElement('div'), { className: 'lm-toast', textContent: text }))
