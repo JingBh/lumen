@@ -6,13 +6,19 @@
   fits()
   document.addEventListener('fullscreenchange', fits)
 
-  // The window fills what is in view, toolbars or not, and the page does not zoom: Safari ignores user-scalable=no, but
-  // not its own gesture events.
+  // The window fills what is in view, toolbars or not, and the page does not zoom. Safari ignores user-scalable=no, but
+  // not its own gesture events, which a pinch makes; and it zooms on a double tap inside the scrolling workspace
+  // whatever touch-action says, unless the tap that ends it is cancelled.
   const view = () => document.documentElement.style.setProperty('--view-h', `${window.visualViewport?.height ?? innerHeight}px`)
   view()
   window.visualViewport?.addEventListener('resize', view)
   addEventListener('resize', view)
   for (const type of ['gesturestart', 'gesturechange']) document.addEventListener(type, (e) => e.preventDefault())
+  let tapped = 0
+  document.addEventListener('touchend', (e) => {
+    if (e.timeStamp - tapped < 350) e.preventDefault()
+    tapped = e.timeStamp
+  })
 
   const toast = (text) => {
     document.querySelector('.lm-toast')?.remove()
