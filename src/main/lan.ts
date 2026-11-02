@@ -42,10 +42,11 @@ export interface LanServer {
 
 /**
  * Serve the window's page to other devices on the local network: the files in `root`, and at /events the screen as it
- * changes. `first` is what a page that has just connected is sent. Only local addresses are answered, and only when
- * asked for by this machine's own address, so a web page elsewhere cannot reach it under a name of its own.
+ * changes. `first` is what a page that has just connected is sent; `watching` hears how many pages are open each time a
+ * page comes or goes. Only local addresses are answered, and only when asked for by this machine's own address, so a
+ * web page elsewhere cannot reach it under a name of its own.
  */
-export const startLanServer = async (root: string, first: () => [string, unknown][]): Promise<LanServer> => {
+export const startLanServer = async (root: string, first: () => [string, unknown][], watching: (pages: number) => void): Promise<LanServer> => {
   const pages = new Set<ServerResponse>()
   let port = LAN_PORT
   const write = (res: ServerResponse, event: string, data: unknown): void => void res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)
@@ -61,7 +62,11 @@ export const startLanServer = async (root: string, first: () => [string, unknown
       res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' })
       for (const [event, data] of first()) write(res, event, data)
       pages.add(res)
-      req.on('close', () => pages.delete(res))
+      watching(pages.size)
+      req.on('close', () => {
+        pages.delete(res)
+        watching(pages.size)
+      })
       return
     }
     const file = normalize(join(root, path === '/' ? 'lan.html' : path))

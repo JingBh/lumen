@@ -62,9 +62,10 @@ void app.whenReady().then(async () => {
     },
     log
   })
-  // The screen can be seen while the window is open and the screen is not locked.
-  let locked = false
-  const watched = (): void => director.setVisible(!appWindow.collapsed && !locked)
+  // The screen can be seen while the window is open and the screen is not locked, or while a page on the local network
+  // shows it, whatever this machine's window is doing.
+  let locked = false, viewers = 0
+  const watched = (): void => director.setVisible((!appWindow.collapsed && !locked) || viewers > 0)
   appWindow.onVisibility = watched
   powerMonitor.on('lock-screen', () => {
     locked = true
@@ -139,7 +140,10 @@ void app.whenReady().then(async () => {
     settings.lan = on
     if (on) {
       try {
-        lan = await startLanServer(join(app.getAppPath(), 'web'), () => [['appearance', { palette: settings.palette }], ['load', director.spec]])
+        lan = await startLanServer(join(app.getAppPath(), 'web'), () => [['appearance', { palette: settings.palette }], ['load', director.spec]], (pages) => {
+          viewers = pages
+          watched()
+        })
         log(`lan server on port ${lan.port}`)
       } catch (e) {
         settings.lan = false

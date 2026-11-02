@@ -243,7 +243,7 @@ export class Director {
     return lines.join('\n')
   }
 
-  /** Whether anyone can see the screen: the window is open and the screen not locked. */
+  /** Whether anyone can see the screen: the window is open and the screen not locked, or a page elsewhere shows it. */
   setVisible(visible: boolean): void {
     if (this.visible && !visible) this.hiddenAt = Date.now()
     this.visible = visible
@@ -413,7 +413,7 @@ export class Director {
     return `${k(u.input)} in (${k(u.cached)} cached), ${k(u.output)} out${cost != null ? `, cost ${cost.toFixed(4)}` : ''}`
   }
 
-  /** Nobody has been able to see the screen for a while: the window is folded into the orb, or the screen is locked. */
+  /** Nobody has been able to see the screen for a while: the window is folded into the orb or the screen is locked, and no page elsewhere shows it. */
   private away(): boolean {
     return !this.visible && Date.now() - this.hiddenAt > this.config.pauseAfterMs
   }
