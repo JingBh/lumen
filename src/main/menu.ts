@@ -5,8 +5,8 @@ export const PALETTES: [string, string][] = [['cryo', '低温'], ['ion', '离子
 export interface MenuState {
   palette: string
   paused: boolean
-  /** The screen's local network URLs, while devices there may open it. */
-  lan?: string[]
+  /** The screen's local network URLs and their interfaces, while devices there may open it. */
+  lan?: { iface: string; url: string }[]
 }
 
 export interface MenuActions {
@@ -27,7 +27,7 @@ export const buildMenu = (state: MenuState, act: MenuActions): Menu =>
     { type: 'separator' },
     { label: '允许局域网访问', type: 'checkbox', checked: !!state.lan, click: (item) => act.lan(item.checked) },
     ...(state.lan
-      ? [{ label: '查看 URL', submenu: state.lan.length ? state.lan.map((url) => ({ label: url, click: () => act.copy(url) })) : [{ label: '没有局域网地址', enabled: false }] } satisfies MenuItemConstructorOptions]
+      ? [{ label: '查看 URL', submenu: state.lan.length ? state.lan.map(({ iface, url }) => ({ label: `${iface} · ${url}`, click: () => act.copy(url) })) : [{ label: '没有局域网地址', enabled: false }] } satisfies MenuItemConstructorOptions]
       : []),
     { type: 'separator' },
     { label: '退出 Lumen', click: act.quit }

@@ -25,12 +25,11 @@ const within = (list: BlockList, address = ''): boolean => {
   return isIP(ip) > 0 && list.check(ip, isIP(ip) === 6 ? 'ipv6' : 'ipv4')
 }
 
-/** This machine's addresses on local networks, one URL each. A link-local IPv6 address needs its interface, which a URL cannot name. */
-export const lanUrls = (port: number): string[] =>
-  Object.values(networkInterfaces())
-    .flat()
-    .filter((a) => a && !a.internal && !a.scopeid && within(LAN, a.address))
-    .map((a) => `http://${a!.family === 'IPv6' ? `[${a!.address}]` : a!.address}:${port}/`)
+/** This machine's addresses on local networks, one URL each, with the interface it is on. A link-local IPv6 address needs that interface, which a URL cannot name. */
+export const lanUrls = (port: number): { iface: string; url: string }[] =>
+  Object.entries(networkInterfaces()).flatMap(([iface, list = []]) =>
+    list.filter((a) => !a.internal && !a.scopeid && within(LAN, a.address)).map((a) => ({ iface, url: `http://${a.family === 'IPv6' ? `[${a.address}]` : a.address}:${port}/` }))
+  )
 
 const TYPES: Record<string, string> = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.woff2': 'font/woff2' }
 
@@ -51,7 +50,7 @@ export const startLanServer = async (root: string, first: () => [string, unknown
   let port = LAN_PORT
   const write = (res: ServerResponse, event: string, data: unknown): void => void res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)
   const server = createServer((req, res) => {
-    const hosts = ['localhost', '127.0.0.1', '[::1]', ...lanUrls(port).map((u) => new URL(u).hostname)].map((h) => `${h}:${port}`)
+    const hosts = ['localhost', '127.0.0.1', '[::1]', ...lanUrls(port).map(({ url }) => new URL(url).hostname)].map((h) => `${h}:${port}`)
     if (!(within(LAN, req.socket.remoteAddress) || within(LOOPBACK, req.socket.remoteAddress)) || !hosts.includes(req.headers.host ?? '')) {
       res.writeHead(403).end()
       return
